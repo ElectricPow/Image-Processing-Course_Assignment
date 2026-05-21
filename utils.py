@@ -64,8 +64,9 @@ def build_comparison_image(input_image, enhanced_image, gt_image):
     return np.concatenate([input_image, enhanced_image, gt_image], axis=1)
 
 
-def save_csv(csv_path, rows, fieldnames):
+def save_csv(csv_path, rows):
+    metric_names = [key for key in rows[0]]
     with open(csv_path, "w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        writer = csv.DictWriter(csv_file, fieldnames=metric_names)
         writer.writeheader()
         writer.writerows(rows)

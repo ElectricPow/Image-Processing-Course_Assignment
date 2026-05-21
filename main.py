@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from metrics import compute_psnr
+from metrics import (
+    compute_metrics,
+    metrics_rows_append,
+    print_metrics,
+    compute_average_metrics)
 from pipeline import enhance_low_light
 from utils import (
     build_comparison_image,
@@ -51,7 +55,10 @@ def main():
             gamma=GAMMA,
         )
 
-        psnr_value = compute_psnr(outputs["enhanced"], gt_image)
+        # 计算指标（PSNR、SSIM、MAE、MSE、LPIPS）
+        # 这里假设输入图像已经归一化到 [0, 1]
+        # 可以在这个函数中管理需要计算的指标
+        metrics = compute_metrics(outputs["enhanced"], gt_image)
 
         save_gray_image(result_dirs["t0"] / filename, outputs["t0"])
         save_gray_image(result_dirs["tb"] / filename, outputs["tb"])
@@ -64,21 +71,18 @@ def main():
         )
         save_color_image(result_dirs["comparisons"] / filename, comparison)
 
-        metrics_rows.append(
-            {
-                "filename": filename,
-                "psnr": f"{psnr_value:.4f}",
-            }
-        )
+        metrics_rows_append(metrics_rows, filename, metrics)
 
-        print(f"已处理: {filename}, PSNR={psnr_value:.4f}")
+        print_metrics(metrics, filename)
 
-    average_psnr = sum(float(row["psnr"]) for row in metrics_rows) / len(metrics_rows)
-    metrics_rows.append({"filename": "average", "psnr": f"{average_psnr:.4f}"})
+    average_metrics = compute_average_metrics(metrics_rows)
+    
+    metrics_rows_append(metrics_rows, "average", average_metrics)
 
-    save_csv(RESULTS_DIR / "metrics.csv", metrics_rows, fieldnames=["filename", "psnr"])
+    save_csv(RESULTS_DIR / "metrics.csv", metrics_rows)
     print(f"处理完成，共 {len(paired_images)} 张图像。")
-    print(f"平均 PSNR: {average_psnr:.4f}")
+    # 打印平均指标结果
+    print_metrics(average_metrics, "average")
     print(f"指标文件已保存到: {RESULTS_DIR / 'metrics.csv'}")
 
 
