@@ -1,0 +1,4 @@
+config,method,bilateral_diameter,bilateral_sigma_color,bilateral_sigma_space,guided_radius,guided_eps,tmin,gamma,psnr,ssim,mae,mse,lpips
+guided_r4,guided,15,0.1,15,4,0.001,0.1,0.8,18.37509,0.6229000000000001,0.11358000000000001,0.01963,0.25458
+guided_r8,guided,15,0.1,15,8,0.001,0.1,0.8,18.45914,0.62854,0.11222000000000001,0.01928,0.24857
+guided_r16,guided,15,0.1,15,16,0.001,0.1,0.8,18.56152,0.63375,0.11051,0.018770000000000002,0.24322999999999997

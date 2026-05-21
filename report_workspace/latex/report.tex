@@ -1,0 +1,251 @@
+\documentclass[10pt,twocolumn,letterpaper]{article}
+
+\usepackage[UTF8]{ctex}
+\usepackage{cvpr}
+\input{preamble}
+\usepackage[pagebackref,breaklinks,colorlinks,allcolors=blue]{hyperref}
+\usepackage{multirow}
+\usepackage{array}
+
+\title{基于双边滤波与引导滤波的低光照图像增强实验报告}
+
+\author{作者信息待填写\\
+{\tt\small 学号待填写}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本文围绕低光照图像增强任务，基于 Retinex 思想实现了一个最小可运行的增强流程，并重点比较了双边滤波与引导滤波两种边缘保持平滑方法。具体而言，先利用 RGB 三通道最大值估计初始照明图，再分别采用双边滤波和自引导滤波对照明图进行平滑，最后通过照明补偿公式恢复增强图像。实验数据来自题目提供的 10 组低光照/GT 配对样本，定量评价指标包括 PSNR、SSIM、MAE、MSE 和 LPIPS。结果表明，在默认参数下，引导滤波在五项平均指标上整体优于双边滤波；进一步的参数敏感性实验显示，增大引导滤波半径能够稳定改善增强质量，而双边滤波的值域参数会带来像素保真与感知质量之间的权衡。本文实验说明，边缘保持平滑是低光照增强中的关键步骤，而合适的平滑尺度与增强强度决定了最终结果的稳定性与视觉效果。
+\end{abstract}
+
+\section{研究现状及主要研究方法}
+低光照图像通常存在亮度不足、暗区细节难以辨识、噪声显著以及色彩失真等问题。传统方法中，Retinex 理论认为图像可以表示为反射分量与照明分量的乘积，即
+\begin{equation}
+I(x)=R(x)\cdot T(x),
+\end{equation}
+其中 $I(x)$ 为观测图像，$R(x)$ 对应反射信息，$T(x)$ 对应照明信息。低光照增强的基本思想是在估计照明分量后对其进行补偿，从而恢复更合理的反射结果 \cite{land1971retinex}。
+
+从研究路线看，低光照增强大致可以分为三类。第一类是基于图像先验的传统方法，例如直方图均衡、Gamma 校正、Retinex 系列方法以及基于照明图估计的方法。LIME 通过直接估计照明图并施加结构先验，证明了照明建模对增强质量的重要性 \cite{guo2016lime}。第二类是基于边缘保持滤波的增强方法，这类方法通常先从输入图像中估计粗略照明图，再通过双边滤波或引导滤波抑制纹理和噪声，兼顾平滑性与边缘保持 \cite{tomasi1998bilateral,he2010guided,he2013guided}。第三类是深度学习方法，包括 Retinex-Net、KinD、Zero-DCE 等代表性工作，它们能够在大规模训练数据上学习更复杂的亮度映射或分解关系，但通常依赖训练数据、计算资源和更复杂的模型设计 \cite{wei2018retinexnet,zhang2019kind,guo2020zerodce}。
+
+近年来的综述研究指出，传统方法在可解释性、实现成本和小样本场景中仍具有优势，而学习型方法在视觉质量和泛化能力上表现更强 \cite{guo2023survey}。对本次课程作业而言，基于双边滤波与引导滤波的 Retinex 型方法具有结构清晰、参数可解释、便于展示中间结果和分析实验现象等优点，因此适合作为实验报告的主体方案。
+
+\section{本文研究方法}
+\subsection{初始照明图估计}
+设输入 RGB 低光照图像为 $I$，首先将其归一化到 $[0,1]$，再按照题目要求采用三通道最大值估计初始照明图：
+\begin{equation}
+T_0(x)=\max\{I_R(x),I_G(x),I_B(x)\}.
+\end{equation}
+该估计方式实现简单，能够快速反映局部亮度水平，但直接得到的 $T_0$ 往往混入纹理细节、边缘和噪声，因此不能直接作为最终照明图使用。
+
+\subsection{照明图平滑}
+为了得到更符合真实照明分布的结果，本文分别采用双边滤波和引导滤波对 $T_0$ 进行边缘保持平滑。
+
+\paragraph{双边滤波}
+双边滤波在邻域加权平均时同时考虑空间距离和像素值相似性，其形式为
+\begin{equation}
+T_b(x)=\frac{1}{W_x}\sum_{y\in\Omega(x)}G_s(\|x-y\|)G_r(|T_0(x)-T_0(y)|)T_0(y),
+\end{equation}
+其中 $G_s(\cdot)$ 和 $G_r(\cdot)$ 分别对应空间域权重和值域权重，$W_x$ 为归一化因子 \cite{tomasi1998bilateral}。本文实现中使用 OpenCV 的双边滤波接口，重点调节邻域直径 $d$、值域参数 $\sigma_{color}$ 和空间域参数 $\sigma_{space}$。
+
+\paragraph{引导滤波}
+引导滤波假设在局部窗口 $\omega_k$ 内，输出 $q$ 与引导图像 $G$ 满足线性关系
+\begin{equation}
+q_i=a_k G_i+b_k,\quad i\in \omega_k.
+\end{equation}
+在最小二乘与正则化约束下，可求得局部系数
+\begin{equation}
+a_k=\frac{\mathrm{cov}_{\omega_k}(G,p)}{\mathrm{var}_{\omega_k}(G)+\epsilon},\quad
+b_k=\bar{p}_k-a_k\mu_k,
+\end{equation}
+其中 $p$ 为待滤波图像，$\epsilon$ 为正则项 \cite{he2010guided,he2013guided}。本文采用自引导方案，即 $G=T_0,p=T_0$，并以窗口半径 $r$ 与正则参数 $\epsilon$ 控制平滑尺度。
+
+\subsection{照明补偿与增强恢复}
+在得到平滑后的照明图 $T$ 后，对输入图像进行照明补偿，增强公式写为
+\begin{equation}
+J_c(x)=\frac{I_c(x)}{\max(T(x),T_{\min})^\gamma},
+\end{equation}
+其中 $J_c(x)$ 表示输出图像在通道 $c$ 上的像素值，$T_{\min}$ 用于避免极暗区域分母过小导致数值不稳定，$\gamma$ 用于调节增强强度。增强后再将结果裁剪到 $[0,1]$，以便保存图像和计算指标。
+
+\subsection{算法流程}
+本文方法可以概括为以下步骤：
+\begin{enumerate}
+    \item 读取低光照图像并归一化；
+    \item 通过 RGB 三通道最大值估计初始照明图 $T_0$；
+    \item 对 $T_0$ 分别采用双边滤波或自引导滤波进行平滑；
+    \item 利用平滑照明图和增强公式恢复增强结果；
+    \item 将增强结果与 Ground Truth 进行对比，计算 PSNR、SSIM、MAE、MSE 和 LPIPS \cite{wang2004ssim,zhang2018lpips}。
+\end{enumerate}
+
+\begin{figure}[t]
+    \centering
+    \subcaptionbox{初始照明图 $T_0$}{
+        \includegraphics[width=0.31\linewidth]{../assets/figures/t0_default_00017.png}
+    }
+    \hfill
+    \subcaptionbox{双边滤波平滑结果}{
+        \includegraphics[width=0.31\linewidth]{../assets/figures/smooth_bilateral_default_00017.png}
+    }
+    \hfill
+    \subcaptionbox{引导滤波平滑结果}{
+        \includegraphics[width=0.31\linewidth]{../assets/figures/smooth_guided_default_00017.png}
+    }
+    \caption{样本 \texttt{00017.png} 的中间结果示意。双边滤波得到的照明图更平滑，但边缘附近略有扩散；引导滤波保留了更多结构边界。}
+    \label{fig:intermediate}
+\end{figure}
+
+\section{实验结果}
+\subsection{实验设置}
+实验数据采用题目提供的 \texttt{samples/Train/Input} 与 \texttt{samples/Train/GT}，共 10 对配对图像。默认参数设置如下：双边滤波为 $d=15,\sigma_{color}=0.1,\sigma_{space}=15$；引导滤波为 $r=8,\epsilon=10^{-3}$；增强参数为 $T_{\min}=0.1,\gamma=0.8$。其中，PSNR、SSIM 越大越好，MAE、MSE、LPIPS 越小越好。
+
+\subsection{默认参数下的方法对比}
+表 \ref{tab:main} 给出了默认参数下双边滤波与引导滤波的平均结果。可以看到，引导滤波在五项指标上整体优于双边滤波，其中 PSNR 提升约 $0.15$ dB，SSIM 提升 $0.0176$，LPIPS 降低 $0.0058$。这说明在当前任务中，引导滤波得到的照明图更有利于保留结构边缘并抑制不必要的亮度扩散。
+
+\begin{table}[t]
+    \centering
+    \caption{默认参数下两种方法的平均指标对比}
+    \label{tab:main}
+    \begin{tabular}{lccccc}
+        \toprule
+        方法 & PSNR$\uparrow$ & SSIM$\uparrow$ & MAE$\downarrow$ & MSE$\downarrow$ & LPIPS$\downarrow$ \\
+        \midrule
+        双边滤波 & 18.3094 & 0.6109 & 0.1135 & 0.0196 & 0.2544 \\
+        引导滤波 & \textbf{18.4591} & \textbf{0.6285} & \textbf{0.1122} & \textbf{0.0193} & \textbf{0.2486} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../assets/figures/main_method_comparison.png}
+    \caption{默认参数下双边滤波与引导滤波的平均指标对比图。}
+    \label{fig:main_bar}
+\end{figure}
+
+进一步查看逐图像结果可知，引导滤波在 10 张样本上均取得更高的 PSNR 与 SSIM；在 LPIPS 上，引导滤波在 8 张样本上优于双边滤波，仅在 \texttt{00001.png} 和 \texttt{00051.png} 上略逊于双边滤波。这表明两种方法在大多数场景下趋势一致，但感知指标与像素级指标并不总是完全同步。
+
+\subsection{定性结果分析}
+图 \ref{fig:qual_hard} 展示了较困难样本 \texttt{00017.png} 的结果。该样本原图照明极弱，桌面下方和窗帘区域均存在大面积暗区。两种方法都能显著提升可见性，但增强后仍可观察到明显噪声，且与 GT 相比存在亮度偏差，因此其 PSNR 仅约为 11.9 dB。结合图 \ref{fig:intermediate} 可见，双边滤波后的照明图更加平滑，导致增强结果整体略显“泛灰”；引导滤波保留了更多局部结构，因而 SSIM 略高。
+
+\begin{figure}[t]
+    \centering
+    \subcaptionbox{双边滤波结果}{
+        \includegraphics[width=\linewidth]{../assets/figures/comparison_bilateral_default_00017.png}
+    }
+    \\
+    \subcaptionbox{引导滤波结果}{
+        \includegraphics[width=\linewidth]{../assets/figures/comparison_guided_default_00017.png}
+    }
+    \caption{困难样本 \texttt{00017.png} 的定性结果。每行从左到右分别为输入图像、增强结果和 Ground Truth。}
+    \label{fig:qual_hard}
+\end{figure}
+
+图 \ref{fig:qual_good} 展示了两个较稳定样本的结果。对 \texttt{00051.png} 而言，引导滤波在植物叶片和椅背边缘处保留了更清晰的结构；对 \texttt{00091.png} 而言，引导滤波能够更好地恢复炉灶边界和锅体轮廓，同时控制墙面区域的亮度泄漏。两者共同说明，引导滤波在结构清晰的场景下更容易获得与 GT 接近的亮度分布。
+
+\begin{figure}[t]
+    \centering
+    \subcaptionbox{\texttt{00051.png}}{
+        \includegraphics[width=\linewidth]{../assets/figures/comparison_guided_default_00051.png}
+    }
+    \\
+    \subcaptionbox{\texttt{00091.png}}{
+        \includegraphics[width=\linewidth]{../assets/figures/comparison_guided_default_00091.png}
+    }
+    \caption{两个代表性样本的引导滤波增强结果。每行从左到右分别为输入图像、增强结果和 Ground Truth。}
+    \label{fig:qual_good}
+\end{figure}
+
+\subsection{参数敏感性分析}
+为分析中间设计对结果的影响，本文进一步对双边滤波的 $\sigma_{color}$、引导滤波的半径 $r$ 以及增强指数 $\gamma$ 进行了控制变量实验。
+
+\paragraph{双边滤波的值域参数 $\sigma_{color}$}
+表 \ref{tab:bilateral_sigma} 与图 \ref{fig:bilateral_curve} 展示了双边滤波对 $\sigma_{color}$ 的敏感性。随着 $\sigma_{color}$ 从 $0.05$ 增大到 $0.20$，PSNR 与 SSIM 逐渐下降，而 LPIPS 略有改善。这说明较小的值域参数更强调边缘约束，能够保留更多与 GT 一致的结构；较大的值域参数则会在更大范围内平均照明值，使增强结果更平滑，但也可能牺牲部分像素级精度。
+
+\begin{table}[t]
+    \centering
+    \caption{双边滤波值域参数 $\sigma_{color}$ 的影响}
+    \label{tab:bilateral_sigma}
+    \begin{tabular}{cccc}
+        \toprule
+        $\sigma_{color}$ & PSNR$\uparrow$ & SSIM$\uparrow$ & LPIPS$\downarrow$ \\
+        \midrule
+        0.05 & \textbf{18.3311} & \textbf{0.6181} & 0.2578 \\
+        0.10 & 18.3094 & 0.6109 & 0.2544 \\
+        0.20 & 18.2777 & 0.6057 & \textbf{0.2542} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../assets/figures/bilateral_sigma_color_curve.png}
+    \caption{双边滤波值域参数变化对平均指标的影响。}
+    \label{fig:bilateral_curve}
+\end{figure}
+
+\paragraph{引导滤波半径 $r$}
+表 \ref{tab:guided_radius} 与图 \ref{fig:guided_radius_curve} 显示，在 $r=4,8,16$ 的测试范围内，半径增大带来了稳定的指标提升。当 $r=16$ 时，PSNR、SSIM、MAE、MSE 和 LPIPS 同时达到最优。原因在于更大的窗口半径使局部线性模型能够在更大尺度上估计照明变化，从而更有效地抑制纹理和噪声，同时保持主要结构边界。
+
+\begin{table}[t]
+    \centering
+    \caption{引导滤波半径 $r$ 的影响}
+    \label{tab:guided_radius}
+    \begin{tabular}{cccccc}
+        \toprule
+        $r$ & PSNR$\uparrow$ & SSIM$\uparrow$ & MAE$\downarrow$ & MSE$\downarrow$ & LPIPS$\downarrow$ \\
+        \midrule
+        4  & 18.3751 & 0.6229 & 0.1136 & 0.0196 & 0.2546 \\
+        8  & 18.4591 & 0.6285 & 0.1122 & 0.0193 & 0.2486 \\
+        16 & \textbf{18.5615} & \textbf{0.6338} & \textbf{0.1105} & \textbf{0.0188} & \textbf{0.2432} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../assets/figures/guided_radius_curve.png}
+    \caption{引导滤波半径变化对平均指标的影响。}
+    \label{fig:guided_radius_curve}
+\end{figure}
+
+\paragraph{增强指数 $\gamma$}
+增强公式中的 $\gamma$ 直接控制补偿强度。实验结果如表 \ref{tab:gamma} 与图 \ref{fig:gamma_curve} 所示：当 $\gamma=0.6$ 时，增强不足，PSNR 仅为 12.2243 dB；当 $\gamma=1.0$ 时，虽然亮度提升更强，但会造成过增强与噪声放大，LPIPS 显著变差；在本实验中，$\gamma=0.8$ 在像素级指标上达到最佳，说明该取值在亮度补偿与失真控制之间取得了较好的平衡。
+
+\begin{table}[t]
+    \centering
+    \caption{增强指数 $\gamma$ 的影响（基于引导滤波）}
+    \label{tab:gamma}
+    \begin{tabular}{cccc}
+        \toprule
+        $\gamma$ & PSNR$\uparrow$ & SSIM$\uparrow$ & LPIPS$\downarrow$ \\
+        \midrule
+        0.6 & 12.2243 & 0.6090 & \textbf{0.2430} \\
+        0.8 & \textbf{18.4591} & \textbf{0.6285} & 0.2486 \\
+        1.0 & 14.3550 & 0.5360 & 0.3148 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../assets/figures/guided_gamma_curve.png}
+    \caption{增强指数 $\gamma$ 变化对平均指标的影响。}
+    \label{fig:gamma_curve}
+\end{figure}
+
+\section{总结}
+本文完成了一个基于 Retinex 思想的低光照图像增强实验系统，重点比较了双边滤波与引导滤波两种照明图平滑方式，并通过定量与定性实验分析了关键参数对结果的影响。实验表明：
+\begin{enumerate}
+    \item 在默认参数下，引导滤波优于双边滤波，说明局部线性约束更适合本作业数据中的照明图细化；
+    \item 照明图平滑尺度显著影响增强质量，较大的引导滤波半径在当前样本上表现更稳定；
+    \item 增强强度并非越大越好，$\gamma$ 需要在增强充分性与噪声放大之间取得平衡。
+\end{enumerate}
+
+本文方法的优点是结构清晰、实现简单、可解释性强，并且能够直接输出初始照明图、平滑照明图和增强结果等中间步骤。其不足在于：第一，照明估计仍采用最大通道近似，难以应对复杂光照和严重色偏；第二，参数仍依赖人工设置，不同图像上的最优取值并不完全一致；第三，在极暗样本中，增强后仍会放大噪声，与 GT 之间存在亮度偏差。后续可尝试更稳健的照明图先验、联合去噪机制，或引入学习型方法进一步提升结果。
+
+{\small
+\bibliographystyle{ieeenat_fullname}
+\bibliography{references}
+}
+
+\end{document}

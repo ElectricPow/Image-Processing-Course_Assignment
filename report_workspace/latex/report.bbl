@@ -1,0 +1,63 @@
+\begin{thebibliography}{11}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Guo et~al.(2020)Guo, Li, Guo, Loy, Hou, Kwong, and Cong]{guo2020zerodce}
+Chunle Guo, Chongyi Li, Jichang Guo, Chen~Change Loy, Junhui Hou, Sam Kwong, and Runmin Cong.
+\newblock Zero-reference deep curve estimation for low-light image enhancement.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 1780--1789, 2020.
+
+\bibitem[Guo et~al.(2017)Guo, Li, and Ling]{guo2016lime}
+Xiaojie Guo, Yu Li, and Haibin Ling.
+\newblock Lime: Low-light image enhancement via illumination map estimation.
+\newblock \emph{IEEE Transactions on Image Processing}, 26\penalty0 (2):\penalty0 982--993, 2017.
+
+\bibitem[Guo et~al.(2023)Guo, Li, Ling, et~al.]{guo2023survey}
+Xiaojie Guo, Yu Li, Haibin Ling, et~al.
+\newblock A survey on image enhancement for low-light images.
+\newblock \emph{Heliyon}, 9\penalty0 (11):\penalty0 e21660, 2023.
+
+\bibitem[He et~al.(2010)He, Sun, and Tang]{he2010guided}
+Kaiming He, Jian Sun, and Xiaoou Tang.
+\newblock Guided image filtering.
+\newblock In \emph{Proceedings of the European Conference on Computer Vision}, pages 1--14, 2010.
+
+\bibitem[He et~al.(2013)He, Sun, and Tang]{he2013guided}
+Kaiming He, Jian Sun, and Xiaoou Tang.
+\newblock Guided image filtering.
+\newblock \emph{IEEE Transactions on Pattern Analysis and Machine Intelligence}, 35\penalty0 (6):\penalty0 1397--1409, 2013.
+
+\bibitem[Land and McCann(1971)]{land1971retinex}
+Edwin~H. Land and John~J. McCann.
+\newblock Lightness and retinex theory.
+\newblock \emph{Journal of the Optical Society of America}, 61\penalty0 (1):\penalty0 1--11, 1971.
+
+\bibitem[Tomasi and Manduchi(1998)]{tomasi1998bilateral}
+Carlo Tomasi and Roberto Manduchi.
+\newblock Bilateral filtering for gray and color images.
+\newblock In \emph{Proceedings of the IEEE International Conference on Computer Vision}, pages 839--846, 1998.
+
+\bibitem[Wang et~al.(2004)Wang, Bovik, Sheikh, and Simoncelli]{wang2004ssim}
+Zhou Wang, Alan~C. Bovik, Hamid~R. Sheikh, and Eero~P. Simoncelli.
+\newblock Image quality assessment: From error visibility to structural similarity.
+\newblock \emph{IEEE Transactions on Image Processing}, 13\penalty0 (4):\penalty0 600--612, 2004.
+
+\bibitem[Wei et~al.(2018)Wei, Wang, Yang, and Liu]{wei2018retinexnet}
+Chen Wei, Wenjing Wang, Wenhan Yang, and Jiaying Liu.
+\newblock Deep retinex decomposition for low-light enhancement.
+\newblock In \emph{Proceedings of the British Machine Vision Conference}, 2018.
+
+\bibitem[Zhang et~al.(2018)Zhang, Isola, Efros, Shechtman, and Wang]{zhang2018lpips}
+Richard Zhang, Phillip Isola, Alexei~A. Efros, Eli Shechtman, and Oliver Wang.
+\newblock The unreasonable effectiveness of deep features as a perceptual metric.
+\newblock \emph{Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition}, pages 586--595, 2018.
+
+\bibitem[Zhang et~al.(2019)Zhang, Zhang, and Guo]{zhang2019kind}
+Yonghua Zhang, Jiawan Zhang, and Xiaojie Guo.
+\newblock Kindling the darkness: A practical low-light image enhancer.
+\newblock \emph{Proceedings of the ACM International Conference on Multimedia}, pages 1632--1640, 2019.
+
+\end{thebibliography}
