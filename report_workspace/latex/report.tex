@@ -474,6 +474,143 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
 
 本文方法的优点是结构清晰、实现简单、可解释性强，并且能够直接输出初始照明图、平滑照明图和增强结果等中间步骤。其不足在于：第一，照明估计仍采用最大通道近似，难以应对复杂光照和严重色偏；第二，参数仍依赖人工设置，不同图像上的最优取值并不完全一致；第三，在极暗样本中，增强后仍会放大噪声，与 GT 之间存在亮度偏差。后续可尝试更稳健的照明图先验、联合去噪机制，或引入学习型方法进一步提升结果。
 
+\section{色彩校正方法 B}
+在前述增强结果的基础上，仍可观察到部分样本存在较明显的色偏。以 \texttt{00051.png} 和 \texttt{00091.png} 为例，guided 默认参数增强后的亮度恢复已经较为充分，但植物边缘、锅体高亮区域和墙面过渡区域仍出现与 Ground Truth 不一致的色度偏移。为了定量描述这一现象，本文继续采用 Lab 空间中忽略亮度后的色度距离
+\begin{equation}
+\Delta ab(x)=\sqrt{(a(x)-a_{GT}(x))^2+(b(x)-b_{GT}(x))^2},
+\end{equation}
+并将其绘制为热力图。图 \ref{fig:ccb_heatmap_before} 表明，两张代表样本的高误差区域主要集中在暖色高亮边界、植物叶片反光以及局部暗区纹理处，这说明单纯依赖增强后的色度响应仍会带来一定的颜色漂移。
+
+\begin{figure}[t]
+    \centering
+    \subcaptionbox{00051.png 的 $\Delta ab$ 热力图}{
+        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_enhanced_00051.png}
+    }
+    \hfill
+    \subcaptionbox{00091.png 的 $\Delta ab$ 热力图}{
+        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_enhanced_00091.png}
+    }
+    \caption{默认 guided 增强结果的 Lab 色度距离热力图。暖色高亮边缘和局部材质纹理处的色差更明显。}
+    \label{fig:ccb_heatmap_before}
+\end{figure}
+
+色彩校正方法 B 的核心思想是：保持增强结果的亮度分量 $L_j$ 不变，仅利用原始低光照图像的色度分量对增强结果进行自适应回拉。设原图的 Lab 表示为 $(L_i,a_i,b_i)$，增强结果的 Lab 表示为 $(L_j,a_j,b_j)$，则本文采用如下融合形式：
+\begin{equation}
+a_j'=(1-\alpha)a_j+\alpha a_i,
+\end{equation}
+\begin{equation}
+b_j'=(1-\alpha)b_j+\alpha b_i,
+\end{equation}
+其中
+\begin{equation}
+\alpha(x)=\alpha_{\max}\cdot\frac{L_i(x)}{100}.
+\end{equation}
+最终校正结果写为
+\begin{equation}
+J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
+\end{equation}
+上述设计保持了增强后已经恢复出来的亮度结构，同时让原图较可信的亮区色度对最终结果提供约束。由于低光照图像暗区的色度更容易受到噪声和通道失衡影响，因此本文不直接使用固定融合系数，而是让 $\alpha(x)$ 随原图亮度 $L_i(x)$ 线性变化；实验默认取 $\alpha_{\max}=0.5$，从而限制原图色度的最大参与程度。
+
+\begin{figure}[t]
+    \centering
+    \subcaptionbox{\texttt{00051.png}}{
+        \includegraphics[width=\linewidth]{../assets/figures/ccb_compare_corrected_00051.png}
+    }
+    \\
+    \subcaptionbox{\texttt{00091.png}}{
+        \includegraphics[width=\linewidth]{../assets/figures/ccb_compare_corrected_00091.png}
+    }
+    \caption{色彩校正方法 B 的代表性结果。每行从左到右分别为输入图像、方法 B 校正结果和 Ground Truth。}
+    \label{fig:ccb_comparison}
+\end{figure}
+
+表 \ref{tab:ccb_selected} 给出了两张代表样本在色彩校正前后的指标变化。可以看到，方法 B 在 \texttt{00051.png} 和 \texttt{00091.png} 上均同时改善了 PSNR、SSIM、LPIPS 与 $\Delta ab$。其中 \texttt{00051.png} 的 $\Delta ab$ 从 11.2778 降至 10.5267，\texttt{00091.png} 的 $\Delta ab$ 从 6.9758 降至 6.6622。虽然改变量小于强全局压缩型方法，但视觉上保留了更多增强结果自身的色彩氛围，同时对高亮边缘的色偏有一定抑制作用。
+
+\begin{table}[t]
+    \centering
+    \caption{代表样本在色彩校正方法 B 前后的指标对比}
+    \label{tab:ccb_selected}
+    \begin{tabular}{lccccc}
+        \toprule
+        样本 & 结果 & PSNR$\uparrow$ & SSIM$\uparrow$ & LPIPS$\downarrow$ & $\Delta ab\downarrow$ \\
+        \midrule
+        \multirow{2}{*}{00051} & 增强前 & 21.3701 & 0.6567 & 0.2196 & 11.2778 \\
+        & 校正后 & \textbf{21.6306} & \textbf{0.6644} & \textbf{0.2171} & \textbf{10.5267} \\
+        \midrule
+        \multirow{2}{*}{00091} & 增强前 & 23.4170 & 0.5993 & 0.3178 & 6.9758 \\
+        & 校正后 & \textbf{23.4927} & \textbf{0.6081} & \textbf{0.3156} & \textbf{6.6622} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+从整组测试集的平均结果来看，方法 B 同样带来了稳定提升。表 \ref{tab:ccb_average} 显示，在默认 guided 参数 $r=8,\epsilon=10^{-3},T_{\min}=0.1,\gamma=0.8$ 下，加入方法 B 后，平均 PSNR 从 18.4591 dB 提升到 18.5382 dB，SSIM 从 0.6285 提升到 0.6353，LPIPS 从 0.2486 下降到 0.2466，$\Delta ab$ 从 9.5235 下降到 9.0655。说明原图色度先验虽然较弱，但通过亮度自适应融合后，仍能对增强结果提供稳定的颜色约束。
+
+\begin{table}[t]
+    \centering
+    \caption{默认 guided 参数下色彩校正方法 B 的平均指标}
+    \label{tab:ccb_average}
+    \begin{tabular}{lcccc}
+        \toprule
+        结果 & PSNR$\uparrow$ & SSIM$\uparrow$ & LPIPS$\downarrow$ & $\Delta ab\downarrow$ \\
+        \midrule
+        增强结果 & 18.4591 & 0.6285 & 0.2486 & 9.5235 \\
+        方法 B 校正后 & \textbf{18.5382} & \textbf{0.6353} & \textbf{0.2466} & \textbf{9.0655} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+图 \ref{fig:ccb_heatmap_after} 给出了方法 B 校正后的 $\Delta ab$ 热力图。与图 \ref{fig:ccb_heatmap_before} 对比可见，00051 的植物和椅背高亮边缘、00091 的锅体高亮边界处，暖色高误差区域均有所收缩。由于该方法仅在色度上做线性融合，且暗区的 $\alpha(x)$ 较小，因此它不会像强全局压缩那样显著改变整幅图像的色彩风格，而更偏向于一种保守的颜色回拉。
+
+\begin{figure}[t]
+    \centering
+    \subcaptionbox{00051.png 校正后的 $\Delta ab$ 热力图}{
+        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_corrected_00051.png}
+    }
+    \hfill
+    \subcaptionbox{00091.png 校正后的 $\Delta ab$ 热力图}{
+        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_corrected_00091.png}
+    }
+    \caption{色彩校正方法 B 的 Lab 色度距离热力图。高色差区域较增强前有所减弱，但整体色彩风格保持更接近增强结果。}
+    \label{fig:ccb_heatmap_after}
+\end{figure}
+
+\paragraph{融合上限参数 $\alpha_{\max}$}
+为分析原图色度参与程度对结果的影响，本文在默认 guided 参数下，进一步测试了 $\alpha_{\max}=0.0,0.1,0.2,0.3,0.4,0.5$ 六组取值。表 \ref{tab:ccb_alpha} 与图 \ref{fig:ccb_alpha_curve} 显示，在当前数据集上，随着 $\alpha_{\max}$ 增大，PSNR、SSIM 持续上升，而 $\Delta ab$ 与 LPIPS 持续下降，呈现较稳定的单调趋势。以极值组为例，当 $\alpha_{\max}$ 从 0 增加到 0.5 时，平均 PSNR 从 18.4357 dB 提升到 18.5382 dB，SSIM 从 0.6284 提升到 0.6353，$\Delta ab$ 从 9.5096 降至 9.0655。说明在当前实验范围内，原图色度先验仍未被过度使用，较大的融合上限反而更有利于抑制增强结果中的颜色漂移。
+
+\begin{table}[t]
+    \centering
+    \caption{色彩校正方法 B 中 $\alpha_{\max}$ 的影响}
+    \label{tab:ccb_alpha}
+    \begin{tabular}{ccccc}
+        \toprule
+        $\alpha_{\max}$ & PSNR$\uparrow$ & SSIM$\uparrow$ & LPIPS$\downarrow$ & $\Delta ab\downarrow$ \\
+        \midrule
+        0.0 & 18.4357 & 0.6284 & 0.2487 & 9.5096 \\
+        0.1 & 18.4574 & 0.6298 & 0.2482 & 9.3790 \\
+        0.2 & 18.4785 & 0.6312 & 0.2478 & 9.3047 \\
+        0.3 & 18.4989 & 0.6326 & 0.2474 & 9.2256 \\
+        0.4 & 18.5188 & 0.6340 & 0.2470 & 9.1457 \\
+        0.5 & \textbf{18.5382} & \textbf{0.6353} & \textbf{0.2466} & \textbf{9.0655} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../assets/figures/ccb_alpha_max_curve.png}
+    \caption{融合上限参数 $\alpha_{\max}$ 变化对平均指标的影响。}
+    \label{fig:ccb_alpha_curve}
+\end{figure}
+
+图 \ref{fig:ccb_alpha_grid} 给出了样本 \texttt{00051.png} 在不同 $\alpha_{\max}$ 下的视觉结果。随着 $\alpha_{\max}$ 增大，叶片边缘和木质区域的色调逐渐向原图颜色方向回拉，但由于 $\alpha(x)$ 仍受到原图亮度调制，暗区没有出现明显的颜色噪声放大。在当前测试范围内，$\alpha_{\max}=0.5$ 提供了最明显且仍然稳定的校正效果，因此本文将其作为方法 B 的默认设置。
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../assets/figures/ccb_alpha_max_grid_00051.png}
+    \caption{样本 \texttt{00051.png} 在不同 $\alpha_{\max}$ 下的色彩校正方法 B 结果。从左到右、从上到下依次为 $\alpha_{\max}=0.0,0.1,0.2,0.3,0.4,0.5$。}
+    \label{fig:ccb_alpha_grid}
+\end{figure}
+
 {\small
 \bibliographystyle{ieeenat_fullname}
 \bibliography{references}

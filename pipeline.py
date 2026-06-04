@@ -11,9 +11,8 @@ def estimate_initial_illumination(input_image):
 
 def smooth_illumination_with_bilateral(t0, diameter, sigma_color, sigma_space):
     # OpenCV 双边滤波可直接用于单通道浮点图像
-    t0_float32 = t0.astype(np.float32)
     return cv2.bilateralFilter(
-        src=t0_float32,
+        src=t0.astype(np.float32),
         d=diameter,
         sigmaColor=sigma_color,
         sigmaSpace=sigma_space,
@@ -21,7 +20,7 @@ def smooth_illumination_with_bilateral(t0, diameter, sigma_color, sigma_space):
 
 
 def smooth_illumination_with_guided(t0, radius, eps):
-    # 使用自引导滤波：G = T0, p = T0
+    # 根据 Project.md 中的默认方案，使用自引导滤波：G = T0, p = T0
     guide = t0.astype(np.float32)
     src = t0.astype(np.float32)
     window_size = (2 * radius + 1, 2 * radius + 1)
@@ -47,7 +46,7 @@ def smooth_illumination_with_guided(t0, radius, eps):
 def apply_color_correction_method_a(input_image, enhanced_image, chroma_scale=0.6):
     del input_image
 
-    # 在 Lab 空间保留增强结果的亮度 Lj，仅对 a/b 做去偏移和压缩
+    # 在 Lab 空间保留增强结果的亮度 Lj，仅对 a/b 做全局偏移抑制和幅值压缩
     enhanced_lab = rgb_to_lab(enhanced_image)
     corrected_lab = enhanced_lab.copy()
 
@@ -55,6 +54,25 @@ def apply_color_correction_method_a(input_image, enhanced_image, chroma_scale=0.
     mean_b = np.mean(enhanced_lab[:, :, 2])
     corrected_lab[:, :, 1] = (enhanced_lab[:, :, 1] - mean_a) * chroma_scale
     corrected_lab[:, :, 2] = (enhanced_lab[:, :, 2] - mean_b) * chroma_scale
+
+    return lab_to_rgb(corrected_lab)
+
+
+def apply_color_correction_method_b(input_image, enhanced_image, alpha_max=0.5):
+    # 保持增强图亮度不变，根据原图亮度自适应地向原图色度回拉
+    input_lab = rgb_to_lab(input_image)
+    enhanced_lab = rgb_to_lab(enhanced_image)
+    corrected_lab = enhanced_lab.copy()
+
+    original_l = input_lab[:, :, 0]
+    alpha = np.clip(alpha_max * (original_l / 100.0), 0.0, alpha_max).astype(np.float32)
+
+    corrected_lab[:, :, 1] = (
+        (1.0 - alpha) * enhanced_lab[:, :, 1] + alpha * input_lab[:, :, 1]
+    )
+    corrected_lab[:, :, 2] = (
+        (1.0 - alpha) * enhanced_lab[:, :, 2] + alpha * input_lab[:, :, 2]
+    )
 
     return lab_to_rgb(corrected_lab)
 
@@ -69,6 +87,7 @@ def enhance_low_light(
     guided_eps,
     tmin,
     gamma,
+    alpha_max=0.5,
 ):
     t0 = estimate_initial_illumination(input_image)
 
@@ -90,12 +109,16 @@ def enhance_low_light(
 
     # 根据公式 J = I / max(T, Tmin)^gamma 进行增强
     denominator = np.maximum(smooth_illumination, tmin) ** gamma
-    enhanced = input_image / denominator[:, :, np.newaxis]
-    enhanced = np.clip(enhanced, 0.0, 1.0)
+    enhanced = np.clip(input_image / denominator[:, :, np.newaxis], 0.0, 1.0)
 
     color_corrected = apply_color_correction_method_a(
         input_image=input_image,
         enhanced_image=enhanced,
+    )
+    color_corrected_b = apply_color_correction_method_b(
+        input_image=input_image,
+        enhanced_image=enhanced,
+        alpha_max=alpha_max,
     )
 
     return {
@@ -104,4 +127,5 @@ def enhance_low_light(
         "smooth": np.clip(smooth_illumination, 0.0, 1.0),
         "enhanced": enhanced,
         "color_corrected": color_corrected,
+        "color_corrected_b": color_corrected_b,
     }

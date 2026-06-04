@@ -17,6 +17,8 @@ def ensure_results_dirs(results_dir, methods):
             "comparisons": results_dir / method / "comparisons",
             "corrected": results_dir / method / "corrected",
             "corrected_comparisons": results_dir / method / "corrected_comparisons",
+            "corrected_b": results_dir / method / "corrected_b",
+            "corrected_b_comparisons": results_dir / method / "corrected_b_comparisons",
         }
 
         for path in subdirs.values():
