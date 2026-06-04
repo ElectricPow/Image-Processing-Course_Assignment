@@ -1,0 +1,3 @@
+variant,psnr,ssim,mae,mse,lpips,delta_ab
+guided_enhanced,18.4591,0.6285,0.1122,0.0193,0.2486,9.5235
+guided_color_corrected,18.8556,0.7037,0.1070,0.0181,0.2656,8.5330

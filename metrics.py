@@ -3,6 +3,8 @@ from functools import lru_cache
 import numpy as np
 from skimage.metrics import structural_similarity
 
+from utils import compute_delta_ab_map
+
 
 def compute_psnr(pred_image, gt_image):
     # 这里假设输入图像已经归一化到 [0, 1]
@@ -73,6 +75,11 @@ def compute_lpips(pred_image, gt_image):
     return float(lpips_value.item())
 
 
+def compute_delta_ab(pred_image, gt_image):
+    delta_ab_map = compute_delta_ab_map(pred_image, gt_image)
+    return float(np.mean(delta_ab_map))
+
+
 def compute_metrics(pred_image, gt_image):
     # 需要添加的指标计算函数在这里调用
     psnr_value = compute_psnr(pred_image, gt_image)
@@ -80,6 +87,7 @@ def compute_metrics(pred_image, gt_image):
     mae_value = compute_mae(pred_image, gt_image)
     mse_value = compute_mse(pred_image, gt_image)
     lpips_value = compute_lpips(pred_image, gt_image)
+    delta_ab_value = compute_delta_ab(pred_image, gt_image)
 
     # 在这里调整每一张图的指标计算结果的格式
     return {
@@ -88,6 +96,7 @@ def compute_metrics(pred_image, gt_image):
         "mae": mae_value,
         "mse": mse_value,
         "lpips": lpips_value,
+        "delta_ab": delta_ab_value,
     }
 
 

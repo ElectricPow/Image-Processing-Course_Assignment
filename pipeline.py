@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+from utils import lab_to_rgb, rgb_to_lab
+
 
 def estimate_initial_illumination(input_image):
     # 按题目要求，使用 RGB 三通道最大值作为初始照明图 T0
@@ -19,7 +21,7 @@ def smooth_illumination_with_bilateral(t0, diameter, sigma_color, sigma_space):
 
 
 def smooth_illumination_with_guided(t0, radius, eps):
-    # 根据 Project.md 中的默认方案，使用自引导滤波：G = T0, p = T0
+    # 使用自引导滤波：G = T0, p = T0
     guide = t0.astype(np.float32)
     src = t0.astype(np.float32)
     window_size = (2 * radius + 1, 2 * radius + 1)
@@ -40,6 +42,21 @@ def smooth_illumination_with_guided(t0, radius, eps):
     mean_b = cv2.boxFilter(b, ddepth=-1, ksize=window_size)
 
     return mean_a * guide + mean_b
+
+
+def apply_color_correction_method_a(input_image, enhanced_image, chroma_scale=0.6):
+    del input_image
+
+    # 在 Lab 空间保留增强结果的亮度 Lj，仅对 a/b 做去偏移和压缩
+    enhanced_lab = rgb_to_lab(enhanced_image)
+    corrected_lab = enhanced_lab.copy()
+
+    mean_a = np.mean(enhanced_lab[:, :, 1])
+    mean_b = np.mean(enhanced_lab[:, :, 2])
+    corrected_lab[:, :, 1] = (enhanced_lab[:, :, 1] - mean_a) * chroma_scale
+    corrected_lab[:, :, 2] = (enhanced_lab[:, :, 2] - mean_b) * chroma_scale
+
+    return lab_to_rgb(corrected_lab)
 
 
 def enhance_low_light(
@@ -71,14 +88,20 @@ def enhance_low_light(
     else:
         raise ValueError(f"不支持的增强方法: {method}")
 
-    # 根据题目公式 J = I / max(T, Tmin)^gamma 进行增强
+    # 根据公式 J = I / max(T, Tmin)^gamma 进行增强
     denominator = np.maximum(smooth_illumination, tmin) ** gamma
     enhanced = input_image / denominator[:, :, np.newaxis]
+    enhanced = np.clip(enhanced, 0.0, 1.0)
 
-    # 将结果限制到 [0, 1]，便于后续保存和计算指标
+    color_corrected = apply_color_correction_method_a(
+        input_image=input_image,
+        enhanced_image=enhanced,
+    )
+
     return {
         "method": method,
         "t0": np.clip(t0, 0.0, 1.0),
         "smooth": np.clip(smooth_illumination, 0.0, 1.0),
-        "enhanced": np.clip(enhanced, 0.0, 1.0),
+        "enhanced": enhanced,
+        "color_corrected": color_corrected,
     }

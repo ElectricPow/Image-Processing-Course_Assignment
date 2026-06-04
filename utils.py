@@ -15,6 +15,8 @@ def ensure_results_dirs(results_dir, methods):
             "smooth": results_dir / method / "smooth",
             "enhanced": results_dir / method / "enhanced",
             "comparisons": results_dir / method / "comparisons",
+            "corrected": results_dir / method / "corrected",
+            "corrected_comparisons": results_dir / method / "corrected_comparisons",
         }
 
         for path in subdirs.values():
@@ -51,6 +53,49 @@ def read_image_rgb(image_path):
 def _float_to_uint8(image):
     image = np.clip(image, 0.0, 1.0)
     return (image * 255.0).round().astype(np.uint8)
+
+
+def rgb_to_lab(rgb_image):
+    rgb_float32 = np.clip(rgb_image, 0.0, 1.0).astype(np.float32)
+    return cv2.cvtColor(rgb_float32, cv2.COLOR_RGB2LAB)
+
+
+def lab_to_rgb(lab_image):
+    lab_float32 = lab_image.astype(np.float32)
+    rgb_image = cv2.cvtColor(lab_float32, cv2.COLOR_LAB2RGB)
+    return np.clip(rgb_image, 0.0, 1.0)
+
+
+def rgb_to_luminance(rgb_image):
+    weights = np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    return np.tensordot(rgb_image.astype(np.float32), weights, axes=([-1], [0]))
+
+
+def compute_delta_ab_map(pred_image, gt_image):
+    pred_lab = rgb_to_lab(pred_image)
+    gt_lab = rgb_to_lab(gt_image)
+
+    delta_a = pred_lab[:, :, 1] - gt_lab[:, :, 1]
+    delta_b = pred_lab[:, :, 2] - gt_lab[:, :, 2]
+    return np.sqrt(delta_a * delta_a + delta_b * delta_b)
+
+
+def normalize_map_to_unit_interval(value_map):
+    value_map = value_map.astype(np.float32)
+    min_value = float(np.min(value_map))
+    max_value = float(np.max(value_map))
+
+    if max_value - min_value <= 1e-12:
+        return np.zeros_like(value_map, dtype=np.float32)
+
+    return (value_map - min_value) / (max_value - min_value)
+
+
+def build_heatmap_rgb(value_map, colormap=cv2.COLORMAP_JET):
+    normalized = normalize_map_to_unit_interval(value_map)
+    heatmap_uint8 = (normalized * 255.0).round().astype(np.uint8)
+    heatmap_bgr = cv2.applyColorMap(heatmap_uint8, colormap)
+    return cv2.cvtColor(heatmap_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
 
 
 def save_gray_image(output_path, gray_image):

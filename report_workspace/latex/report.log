@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2025.11.4)  21 MAY 2026 17:42
+This is XeTeX, Version 3.141592653-2.6-0.999997 (TeX Live 2025) (preloaded format=xelatex 2025.11.4)  4 JUN 2026 20:28
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -714,9 +714,6 @@ Package hyperref Info: Link coloring ON on input line 15.
 
 
 
-Package hyperref Warning: Rerun to get /PageLabels entry.
-
-
 LaTeX Font Warning: Font shape `TU/ptm/b/n' undefined
 (Font)              using `TU/ptm/m/n' instead on input line 17.
 
@@ -777,6 +774,7 @@ LaTeX Font Warning: Font shape `TU/ptm/m/it' undefined
 
 
 ]
+
 File: ../assets/figures/t0_default_00017.png Graphic file (type bmp)
 <../assets/figures/t0_default_00017.png>
 File: ../assets/figures/smooth_bilateral_default_00017.png Graphic file (type b
@@ -787,103 +785,4 @@ File: ../assets/figures/smooth_guided_default_00017.png Graphic file (type bmp)
 <../assets/figures/smooth_guided_default_00017.png>
 
 
-
-Overfull \hbox (26.8442pt too wide) in paragraph at lines 108--116
- [][] 
- []
-
-File: ../assets/figures/main_method_comparison.png Graphic file (type bmp)
-<../assets/figures/main_method_comparison.png>
-
-
-[2]
-File: ../assets/figures/comparison_bilateral_default_00017.png Graphic file (ty
-pe bmp)
-<../assets/figures/comparison_bilateral_default_00017.png>
-
-Overfull \hbox (6.66pt too wide) in paragraph at lines 134--135
- [][] 
- []
-
-File: ../assets/figures/comparison_guided_default_00017.png Graphic file (type 
-bmp)
-<../assets/figures/comparison_guided_default_00017.png>
-
-Overfull \hbox (6.66pt too wide) in paragraph at lines 138--139
- [][] 
- []
-
-File: ../assets/figures/comparison_guided_default_00051.png Graphic file (type 
-bmp)
-<../assets/figures/comparison_guided_default_00051.png>
-
-Overfull \hbox (6.66pt too wide) in paragraph at lines 149--150
- [][] 
- []
-
-File: ../assets/figures/comparison_guided_default_00091.png Graphic file (type 
-bmp)
-<../assets/figures/comparison_guided_default_00091.png>
-
-Overfull \hbox (6.66pt too wide) in paragraph at lines 153--154
- [][] 
- []
-
-
-
-File: ../assets/figures/bilateral_sigma_color_curve.png Graphic file (type bmp)
-
-<../assets/figures/bilateral_sigma_color_curve.png>
-File: ../assets/figures/guided_radius_curve.png Graphic file (type bmp)
-<../assets/figures/guided_radius_curve.png>
-
-
-[3]
-File: ../assets/figures/guided_gamma_curve.png Graphic file (type bmp)
-<../assets/figures/guided_gamma_curve.png>
-
-
-(./report.bbl (./report.brf)
-\tf@brf=\write4
-\openout4 = `report.brf'.
-
-
-
-[4])
-
-
-
-[5
-
-] (./report.aux)
- ***********
-LaTeX2e <2024-11-01> patch level 2
-L3 programming layer <2022/07/14>
- ***********
-
-
-LaTeX Font Warning: Some font shapes were not available, defaults substituted.
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
-Package rerunfilecheck Info: File `report.out' has not changed.
-(rerunfilecheck)             Checksum: 555FE975C60B571439B15BD8B80C1A6C;1231.
-
-Package rerunfilecheck Warning: File `report.brf' has changed.
-(rerunfilecheck)                Rerun to get bibliographical references right.
-
-Package rerunfilecheck Info: Checksums for `report.brf':
-(rerunfilecheck)             Before: D41D8CD98F00B204E9800998ECF8427E;0
-(rerunfilecheck)             After:  43DC9A0EC28EEDE06ABA0831AC51FEB5;655.
- ) 
-Here is how much of TeX's memory you used:
- 20035 strings out of 473832
- 425698 string characters out of 5730404
- 904286 words of memory out of 5000000
- 42804 multiletter control sequences out of 15000+600000
- 570821 words of font info for 105 fonts, out of 8000000 for 9000
- 1348 hyphenation exceptions out of 8191
- 93i,10n,111p,489b,646s stack positions out of 10000i,1000n,20000p,200000b,200000s
-
-Output written on report.pdf (5 pages).
+[2
