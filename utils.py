@@ -15,10 +15,8 @@ def ensure_results_dirs(results_dir, methods):
             "smooth": results_dir / method / "smooth",
             "enhanced": results_dir / method / "enhanced",
             "comparisons": results_dir / method / "comparisons",
-            "corrected": results_dir / method / "corrected",
-            "corrected_comparisons": results_dir / method / "corrected_comparisons",
-            "corrected_b": results_dir / method / "corrected_b",
-            "corrected_b_comparisons": results_dir / method / "corrected_b_comparisons",
+            "linear_corrected": results_dir / method / "linear_corrected",
+            "linear_corrected_comparisons": results_dir / method / "linear_corrected_comparisons",
         }
 
         for path in subdirs.values():

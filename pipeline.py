@@ -43,22 +43,7 @@ def smooth_illumination_with_guided(t0, radius, eps):
     return mean_a * guide + mean_b
 
 
-def apply_color_correction_method_a(input_image, enhanced_image, chroma_scale=0.6):
-    del input_image
-
-    # 在 Lab 空间保留增强结果的亮度 Lj，仅对 a/b 做全局偏移抑制和幅值压缩
-    enhanced_lab = rgb_to_lab(enhanced_image)
-    corrected_lab = enhanced_lab.copy()
-
-    mean_a = np.mean(enhanced_lab[:, :, 1])
-    mean_b = np.mean(enhanced_lab[:, :, 2])
-    corrected_lab[:, :, 1] = (enhanced_lab[:, :, 1] - mean_a) * chroma_scale
-    corrected_lab[:, :, 2] = (enhanced_lab[:, :, 2] - mean_b) * chroma_scale
-
-    return lab_to_rgb(corrected_lab)
-
-
-def apply_color_correction_method_b(input_image, enhanced_image, alpha_max=0.5):
+def apply_linear_color_correction(input_image, enhanced_image, alpha_max=0.5):
     # 保持增强图亮度不变，根据原图亮度自适应地向原图色度回拉
     input_lab = rgb_to_lab(input_image)
     enhanced_lab = rgb_to_lab(enhanced_image)
@@ -87,7 +72,7 @@ def enhance_low_light(
     guided_eps,
     tmin,
     gamma,
-    alpha_max=0.5,
+    linear_alpha_max=0.5,
 ):
     t0 = estimate_initial_illumination(input_image)
 
@@ -111,14 +96,10 @@ def enhance_low_light(
     denominator = np.maximum(smooth_illumination, tmin) ** gamma
     enhanced = np.clip(input_image / denominator[:, :, np.newaxis], 0.0, 1.0)
 
-    color_corrected = apply_color_correction_method_a(
+    linear_color_corrected = apply_linear_color_correction(
         input_image=input_image,
         enhanced_image=enhanced,
-    )
-    color_corrected_b = apply_color_correction_method_b(
-        input_image=input_image,
-        enhanced_image=enhanced,
-        alpha_max=alpha_max,
+        alpha_max=linear_alpha_max,
     )
 
     return {
@@ -126,6 +107,5 @@ def enhance_low_light(
         "t0": np.clip(t0, 0.0, 1.0),
         "smooth": np.clip(smooth_illumination, 0.0, 1.0),
         "enhanced": enhanced,
-        "color_corrected": color_corrected,
-        "color_corrected_b": color_corrected_b,
+        "linear_color_corrected": linear_color_corrected,
     }

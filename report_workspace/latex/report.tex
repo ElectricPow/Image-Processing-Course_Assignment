@@ -16,7 +16,10 @@
 \maketitle
 
 \begin{abstract}
+本文围绕低光照图像增强任务，基于 Retinex 思想构建了一套完整的实验流程。方法上，首先利用 RGB 三通道最大值估计初始照明图，再分别采用双边滤波和引导滤波对照明图进行边缘保持平滑，最后通过照明补偿公式恢复增强结果；在此基础上，进一步设计了保持增强亮度不变、利用原图色度信息进行自适应融合的线性色彩校正方法。实验以题目提供的 10 组低光照图像与 Ground Truth 配对样本为对象，采用 PSNR、SSIM、MAE、MSE、LPIPS 及 Lab 空间 $\Delta ab$ 等指标进行定量分析，并结合中间照明图、增强结果和热力图进行定性比较。结果表明，引导滤波在默认参数下整体优于双边滤波，关键参数对增强质量具有明显影响；同时，线性色彩校正能够在基本保持原有亮度结构的前提下进一步减小色差，改善视觉一致性。
+\iffalse
 本文围绕低光照图像增强任务，基于 Retinex 思想实现了一个最小可运行的增强流程，并重点比较了双边滤波与引导滤波两种边缘保持平滑方法。具体而言，先利用 RGB 三通道最大值估计初始照明图，再分别采用双边滤波和自引导滤波对照明图进行平滑，最后通过照明补偿公式恢复增强图像。实验数据来自题目提供的 10 组低光照/GT 配对样本，定量评价指标包括 PSNR、SSIM、MAE、MSE 和 LPIPS。结果表明，在默认参数下，引导滤波在五项平均指标上整体优于双边滤波。进一步的参数敏感性实验显示，双边滤波对邻域直径 $d$ 最敏感，对值域参数 $\sigma_{color}$ 次之，而空间域参数 $\sigma_{space}$ 的影响相对有限；引导滤波则对窗口半径 $r$ 和正则参数 $\epsilon$ 均较为敏感，其中较大的窗口半径有利于得到更稳定的照明估计，而 $\epsilon$ 体现出保边与过平滑之间的折中；增强参数方面，$T_{\min}$ 与 $\gamma$ 共同决定暗区补偿强度，其中过小的 $T_{\min}$ 容易放大噪声，过大的 $T_{\min}$ 又会抑制亮度恢复，而 $\gamma$ 过小会导致增强不足，过大则会引入明显的过增强。本文实验说明，边缘保持平滑是低光照增强中的关键步骤，而合适的平滑尺度与增强强度决定了最终结果的稳定性与视觉效果。
+\fi
 \end{abstract}
 
 \section{研究现状及主要研究方法}
@@ -28,7 +31,7 @@ I(x)=R(x)\cdot T(x),
 
 从研究路线看，低光照增强大致可以分为三类。第一类是基于图像先验的传统方法，例如直方图均衡、Gamma 校正、Retinex 系列方法以及基于照明图估计的方法。LIME 通过直接估计照明图并施加结构先验，证明了照明建模对增强质量的重要性 \cite{guo2016lime}。第二类是基于边缘保持滤波的增强方法，这类方法通常先从输入图像中估计粗略照明图，再通过双边滤波或引导滤波抑制纹理和噪声，兼顾平滑性与边缘保持 \cite{tomasi1998bilateral,he2010guided,he2013guided}。第三类是深度学习方法，包括 Retinex-Net、KinD、Zero-DCE 等代表性工作，它们能够在大规模训练数据上学习更复杂的亮度映射或分解关系，但通常依赖训练数据、计算资源和更复杂的模型设计 \cite{wei2018retinexnet,zhang2019kind,guo2020zerodce}。
 
-近年来的综述研究指出，传统方法在可解释性、实现成本和小样本场景中仍具有优势，而学习型方法在视觉质量和泛化能力上表现更强 \cite{guo2023survey}。对本次课程作业而言，基于双边滤波与引导滤波的 Retinex 型方法具有结构清晰、参数可解释、便于展示中间结果和分析实验现象等优点，因此适合作为实验报告的主体方案。
+近年来的综述研究指出，传统方法在可解释性、实现成本和小样本场景中仍具有优势，而学习型方法在视觉质量和泛化能力上表现更强 \cite{guo2023survey}。除亮度恢复外，颜色失真也是低光照增强中的常见问题，许多增强方法在提升亮度的同时会引入偏色、饱和度不稳定或局部色彩漂移，因此颜色校正或颜色约束同样是提升结果自然性的重要环节。对本次课程作业而言，基于双边滤波与引导滤波的 Retinex 型方法具有结构清晰、参数可解释、便于展示中间结果和分析实验现象等优点，因此本文以其作为主体增强框架，并进一步引入利用原图色度信息的线性色彩校正，构成“亮度恢复 + 色彩修正”的完整实验方案。
 
 \section{本文研究方法}
 \subsection{初始照明图估计}
@@ -67,6 +70,24 @@ J_c(x)=\frac{I_c(x)}{\max(T(x),T_{\min})^\gamma},
 \end{equation}
 其中 $J_c(x)$ 表示输出图像在通道 $c$ 上的像素值，$T_{\min}$ 用于避免极暗区域分母过小导致数值不稳定，$\gamma$ 用于调节增强强度。增强后再将结果裁剪到 $[0,1]$，以便保存图像和计算指标。
 
+\subsection{线性色彩校正}
+在增强结果基础上，本文进一步引入线性色彩校正，以缓解增强后可能出现的偏色和局部色彩漂移。设原图的 Lab 表示为 $(L_i,a_i,b_i)$，增强结果的 Lab 表示为 $(L_j,a_j,b_j)$，则保持增强结果亮度分量 $L_j$ 不变，仅对色度分量进行融合：
+\begin{equation}
+a_j'=(1-\alpha)a_j+\alpha a_i,
+\end{equation}
+\begin{equation}
+b_j'=(1-\alpha)b_j+\alpha b_i,
+\end{equation}
+其中
+\begin{equation}
+\alpha(x)=\alpha_{\max}\cdot\frac{L_i(x)}{100}.
+\end{equation}
+最终校正结果写为
+\begin{equation}
+J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
+\end{equation}
+该设计的直观含义是：亮度结构完全保留增强结果，而颜色信息由增强结果与原图色度共同决定。由于原图亮区的颜色通常比极暗区域更可靠，因此通过原图亮度 $L_i$ 对融合系数进行调制，使较亮区域更多参考原图色度，暗区则减少原图噪声色度的影响。本文默认取 $\alpha_{\max}=0.5$。
+
 \subsection{算法流程}
 本文方法可以概括为以下步骤：
 \begin{enumerate}
@@ -74,7 +95,8 @@ J_c(x)=\frac{I_c(x)}{\max(T(x),T_{\min})^\gamma},
     \item 通过 RGB 三通道最大值估计初始照明图 $T_0$；
     \item 对 $T_0$ 分别采用双边滤波或自引导滤波进行平滑；
     \item 利用平滑照明图和增强公式恢复增强结果；
-    \item 将增强结果与 Ground Truth 进行对比，计算 PSNR、SSIM、MAE、MSE 和 LPIPS \cite{wang2004ssim,zhang2018lpips}。
+    \item 在增强结果基础上，结合原图 Lab 色度信息执行线性色彩校正；
+    \item 将增强结果与 Ground Truth 进行对比，计算 PSNR、SSIM、MAE、MSE、LPIPS 以及 $\Delta ab$ 等指标 \cite{wang2004ssim,zhang2018lpips}。
 \end{enumerate}
 
 \begin{figure}[t]
@@ -463,18 +485,7 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
     \label{fig:gamma_qualitative}
 \end{figure}
 
-\section{总结}
-本文完成了一个基于 Retinex 思想的低光照图像增强实验系统，重点比较了双边滤波与引导滤波两种照明图平滑方式，并通过定量与定性实验分析了关键参数对结果的影响。实验表明：
-\begin{enumerate}
-    \item 在默认参数下，引导滤波优于双边滤波，说明局部线性约束更适合本作业数据中的照明图细化；
-    \item 对双边滤波而言，邻域直径 $d$ 的影响最显著，值域参数 $\sigma_{color}$ 次之，而空间域参数 $\sigma_{space}$ 的影响最弱；
-    \item 对引导滤波而言，较大的窗口半径在当前样本上表现更稳定，而正则参数 $\epsilon$ 则体现出明显的保边与过平滑折中；
-    \item 对增强参数而言，$T_{\min}$ 与 $\gamma$ 共同控制暗区补偿幅度，其中较小的 $T_{\min}$ 有利于提升像素级误差指标，但更容易放大噪声；$\gamma=0.8$ 在当前数据上取得了最平衡的结果，过小会增强不足，过大则会导致明显的过增强和感知质量恶化。
-\end{enumerate}
-
-本文方法的优点是结构清晰、实现简单、可解释性强，并且能够直接输出初始照明图、平滑照明图和增强结果等中间步骤。其不足在于：第一，照明估计仍采用最大通道近似，难以应对复杂光照和严重色偏；第二，参数仍依赖人工设置，不同图像上的最优取值并不完全一致；第三，在极暗样本中，增强后仍会放大噪声，与 GT 之间存在亮度偏差。后续可尝试更稳健的照明图先验、联合去噪机制，或引入学习型方法进一步提升结果。
-
-\section{色彩校正方法 B}
+\subsection{线性色彩校正实验}
 在前述增强结果的基础上，仍可观察到部分样本存在较明显的色偏。以 \texttt{00051.png} 和 \texttt{00091.png} 为例，guided 默认参数增强后的亮度恢复已经较为充分，但植物边缘、锅体高亮区域和墙面过渡区域仍出现与 Ground Truth 不一致的色度偏移。为了定量描述这一现象，本文继续采用 Lab 空间中忽略亮度后的色度距离
 \begin{equation}
 \Delta ab(x)=\sqrt{(a(x)-a_{GT}(x))^2+(b(x)-b_{GT}(x))^2},
@@ -494,22 +505,7 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
     \label{fig:ccb_heatmap_before}
 \end{figure}
 
-色彩校正方法 B 的核心思想是：保持增强结果的亮度分量 $L_j$ 不变，仅利用原始低光照图像的色度分量对增强结果进行自适应回拉。设原图的 Lab 表示为 $(L_i,a_i,b_i)$，增强结果的 Lab 表示为 $(L_j,a_j,b_j)$，则本文采用如下融合形式：
-\begin{equation}
-a_j'=(1-\alpha)a_j+\alpha a_i,
-\end{equation}
-\begin{equation}
-b_j'=(1-\alpha)b_j+\alpha b_i,
-\end{equation}
-其中
-\begin{equation}
-\alpha(x)=\alpha_{\max}\cdot\frac{L_i(x)}{100}.
-\end{equation}
-最终校正结果写为
-\begin{equation}
-J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
-\end{equation}
-上述设计保持了增强后已经恢复出来的亮度结构，同时让原图较可信的亮区色度对最终结果提供约束。由于低光照图像暗区的色度更容易受到噪声和通道失衡影响，因此本文不直接使用固定融合系数，而是让 $\alpha(x)$ 随原图亮度 $L_i(x)$ 线性变化；实验默认取 $\alpha_{\max}=0.5$，从而限制原图色度的最大参与程度。
+在前述方法基础上，本文进一步考察线性色彩校正对最终结果的影响。该步骤保持增强结果亮度不变，并利用原图较可信区域的色度信息对增强结果进行自适应回拉，因此既能保持亮度恢复效果，又能在一定程度上缓解颜色漂移。
 
 \begin{figure}[t]
     \centering
@@ -520,15 +516,15 @@ J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
     \subcaptionbox{\texttt{00091.png}}{
         \includegraphics[width=\linewidth]{../assets/figures/ccb_compare_corrected_00091.png}
     }
-    \caption{色彩校正方法 B 的代表性结果。每行从左到右分别为输入图像、方法 B 校正结果和 Ground Truth。}
+    \caption{线性色彩校正的代表性结果。每行从左到右分别为输入图像、线性色彩校正结果和 Ground Truth。}
     \label{fig:ccb_comparison}
 \end{figure}
 
-表 \ref{tab:ccb_selected} 给出了两张代表样本在色彩校正前后的指标变化。可以看到，方法 B 在 \texttt{00051.png} 和 \texttt{00091.png} 上均同时改善了 PSNR、SSIM、LPIPS 与 $\Delta ab$。其中 \texttt{00051.png} 的 $\Delta ab$ 从 11.2778 降至 10.5267，\texttt{00091.png} 的 $\Delta ab$ 从 6.9758 降至 6.6622。虽然改变量小于强全局压缩型方法，但视觉上保留了更多增强结果自身的色彩氛围，同时对高亮边缘的色偏有一定抑制作用。
+表 \ref{tab:ccb_selected} 给出了两张代表样本在线性色彩校正前后的指标变化。可以看到，线性色彩校正在 \texttt{00051.png} 和 \texttt{00091.png} 上均同时改善了 PSNR、SSIM、LPIPS 与 $\Delta ab$。其中 \texttt{00051.png} 的 $\Delta ab$ 从 11.2778 降至 10.5267，\texttt{00091.png} 的 $\Delta ab$ 从 6.9758 降至 6.6622。虽然改变量小于强全局压缩型方法，但视觉上保留了更多增强结果自身的色彩氛围，同时对高亮边缘的色偏有一定抑制作用。
 
 \begin{table}[t]
     \centering
-    \caption{代表样本在色彩校正方法 B 前后的指标对比}
+    \caption{代表样本在线性色彩校正前后的指标对比}
     \label{tab:ccb_selected}
     \begin{tabular}{lccccc}
         \toprule
@@ -543,23 +539,23 @@ J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
     \end{tabular}
 \end{table}
 
-从整组测试集的平均结果来看，方法 B 同样带来了稳定提升。表 \ref{tab:ccb_average} 显示，在默认 guided 参数 $r=8,\epsilon=10^{-3},T_{\min}=0.1,\gamma=0.8$ 下，加入方法 B 后，平均 PSNR 从 18.4591 dB 提升到 18.5382 dB，SSIM 从 0.6285 提升到 0.6353，LPIPS 从 0.2486 下降到 0.2466，$\Delta ab$ 从 9.5235 下降到 9.0655。说明原图色度先验虽然较弱，但通过亮度自适应融合后，仍能对增强结果提供稳定的颜色约束。
+从整组测试集的平均结果来看，线性色彩校正同样带来了稳定提升。表 \ref{tab:ccb_average} 显示，在默认 guided 参数 $r=8,\epsilon=10^{-3},T_{\min}=0.1,\gamma=0.8$ 下，加入线性色彩校正后，平均 PSNR 从 18.4591 dB 提升到 18.5382 dB，SSIM 从 0.6285 提升到 0.6353，LPIPS 从 0.2486 下降到 0.2466，$\Delta ab$ 从 9.5235 下降到 9.0655。说明原图色度先验虽然较弱，但通过亮度自适应融合后，仍能对增强结果提供稳定的颜色约束。
 
 \begin{table}[t]
     \centering
-    \caption{默认 guided 参数下色彩校正方法 B 的平均指标}
+    \caption{默认 guided 参数下线性色彩校正的平均指标}
     \label{tab:ccb_average}
     \begin{tabular}{lcccc}
         \toprule
         结果 & PSNR$\uparrow$ & SSIM$\uparrow$ & LPIPS$\downarrow$ & $\Delta ab\downarrow$ \\
         \midrule
         增强结果 & 18.4591 & 0.6285 & 0.2486 & 9.5235 \\
-        方法 B 校正后 & \textbf{18.5382} & \textbf{0.6353} & \textbf{0.2466} & \textbf{9.0655} \\
+        线性色彩校正后 & \textbf{18.5382} & \textbf{0.6353} & \textbf{0.2466} & \textbf{9.0655} \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-图 \ref{fig:ccb_heatmap_after} 给出了方法 B 校正后的 $\Delta ab$ 热力图。与图 \ref{fig:ccb_heatmap_before} 对比可见，00051 的植物和椅背高亮边缘、00091 的锅体高亮边界处，暖色高误差区域均有所收缩。由于该方法仅在色度上做线性融合，且暗区的 $\alpha(x)$ 较小，因此它不会像强全局压缩那样显著改变整幅图像的色彩风格，而更偏向于一种保守的颜色回拉。
+图 \ref{fig:ccb_heatmap_after} 给出了线性色彩校正后的 $\Delta ab$ 热力图。与图 \ref{fig:ccb_heatmap_before} 对比可见，00051 的植物和椅背高亮边缘、00091 的锅体高亮边界处，暖色高误差区域均有所收缩。由于该方法仅在色度上做线性融合，且暗区的 $\alpha(x)$ 较小，因此它不会像强全局压缩那样显著改变整幅图像的色彩风格，而更偏向于一种保守的颜色回拉。
 
 \begin{figure}[t]
     \centering
@@ -570,7 +566,7 @@ J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
     \subcaptionbox{00091.png 校正后的 $\Delta ab$ 热力图}{
         \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_corrected_00091.png}
     }
-    \caption{色彩校正方法 B 的 Lab 色度距离热力图。高色差区域较增强前有所减弱，但整体色彩风格保持更接近增强结果。}
+    \caption{线性色彩校正的 Lab 色度距离热力图。高色差区域较增强前有所减弱，但整体色彩风格保持更接近增强结果。}
     \label{fig:ccb_heatmap_after}
 \end{figure}
 
@@ -579,7 +575,7 @@ J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 
 \begin{table}[t]
     \centering
-    \caption{色彩校正方法 B 中 $\alpha_{\max}$ 的影响}
+    \caption{线性色彩校正中 $\alpha_{\max}$ 的影响}
     \label{tab:ccb_alpha}
     \begin{tabular}{ccccc}
         \toprule
@@ -602,14 +598,26 @@ J_{cc}^{(B)}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
     \label{fig:ccb_alpha_curve}
 \end{figure}
 
-图 \ref{fig:ccb_alpha_grid} 给出了样本 \texttt{00051.png} 在不同 $\alpha_{\max}$ 下的视觉结果。随着 $\alpha_{\max}$ 增大，叶片边缘和木质区域的色调逐渐向原图颜色方向回拉，但由于 $\alpha(x)$ 仍受到原图亮度调制，暗区没有出现明显的颜色噪声放大。在当前测试范围内，$\alpha_{\max}=0.5$ 提供了最明显且仍然稳定的校正效果，因此本文将其作为方法 B 的默认设置。
+图 \ref{fig:ccb_alpha_grid} 给出了样本 \texttt{00051.png} 在不同 $\alpha_{\max}$ 下的视觉结果。随着 $\alpha_{\max}$ 增大，叶片边缘和木质区域的色调逐渐向原图颜色方向回拉，但由于 $\alpha(x)$ 仍受到原图亮度调制，暗区没有出现明显的颜色噪声放大。在当前测试范围内，$\alpha_{\max}=0.5$ 提供了最明显且仍然稳定的校正效果，因此本文将其作为线性色彩校正的默认设置。
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=\linewidth]{../assets/figures/ccb_alpha_max_grid_00051.png}
-    \caption{样本 \texttt{00051.png} 在不同 $\alpha_{\max}$ 下的色彩校正方法 B 结果。从左到右、从上到下依次为 $\alpha_{\max}=0.0,0.1,0.2,0.3,0.4,0.5$。}
+    \caption{样本 \texttt{00051.png} 在不同 $\alpha_{\max}$ 下的线性色彩校正结果。从左到右、从上到下依次为 $\alpha_{\max}=0.0,0.1,0.2,0.3,0.4,0.5$。}
     \label{fig:ccb_alpha_grid}
 \end{figure}
+
+\section{总结}
+本文完成了一个基于 Retinex 思想的低光照图像增强实验系统，重点比较了双边滤波与引导滤波两种照明图平滑方式，并通过定量与定性实验分析了关键参数及线性色彩校正对结果的影响。实验表明：
+\begin{enumerate}
+    \item 在默认参数下，引导滤波优于双边滤波，说明局部线性约束更适合本作业数据中的照明图细化；
+    \item 对双边滤波而言，邻域直径 $d$ 的影响最显著，值域参数 $\sigma_{color}$ 次之，而空间域参数 $\sigma_{space}$ 的影响最弱；
+    \item 对引导滤波而言，较大的窗口半径在当前样本上表现更稳定，而正则参数 $\epsilon$ 则体现出明显的保边与过平滑折中；
+    \item 对增强参数而言，$T_{\min}$ 与 $\gamma$ 共同控制暗区补偿幅度，其中较小的 $T_{\min}$ 有利于提升像素级误差指标，但更容易放大噪声；$\gamma=0.8$ 在当前数据上取得了最平衡的结果，过小会增强不足，过大则会导致明显的过增强和感知质量恶化；
+    \item 在线性色彩校正阶段，利用原图 Lab 色度信息进行亮度自适应融合，能够在基本保持亮度结构的前提下进一步减小色差，改善颜色一致性。
+\end{enumerate}
+
+本文方法的优点是结构清晰、实现简单、可解释性强，并且能够直接输出初始照明图、平滑照明图、增强结果以及颜色校正结果等中间步骤。其不足在于：第一，照明估计仍采用最大通道近似，难以应对复杂光照和严重色偏；第二，参数仍依赖人工设置，不同图像上的最优取值并不完全一致；第三，在极暗样本中，增强后仍会放大噪声，线性色彩校正对这类区域的改善也相对有限。后续可尝试更稳健的照明图先验、联合去噪机制，或引入学习型方法进一步提升结果。
 
 {\small
 \bibliographystyle{ieeenat_fullname}

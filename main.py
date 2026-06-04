@@ -31,7 +31,7 @@ GUIDED_RADIUS = 8
 GUIDED_EPS = 1e-3
 TMIN = 0.1
 GAMMA = 0.8
-ALPHA_MAX = 0.5
+LINEAR_ALPHA_MAX = 0.5
 
 
 def main():
@@ -42,15 +42,13 @@ def main():
         raise RuntimeError("未找到可匹配的 Input / GT 图像对。")
 
     comparison_summary_rows = []
-    corrected_comparison_summary_rows = []
-    corrected_b_comparison_summary_rows = []
+    linear_correction_summary_rows = []
 
     for method in METHODS:
         print(f"开始处理方法: {method}")
         result_dirs = result_dirs_by_method[method]
         metrics_rows = []
-        corrected_metrics_rows = []
-        corrected_b_metrics_rows = []
+        linear_correction_metrics_rows = []
 
         for input_path, gt_path in paired_images:
             filename = input_path.name
@@ -67,101 +65,98 @@ def main():
                 guided_eps=GUIDED_EPS,
                 tmin=TMIN,
                 gamma=GAMMA,
-                alpha_max=ALPHA_MAX,
+                linear_alpha_max=LINEAR_ALPHA_MAX,
             )
 
             metrics = compute_metrics(outputs["enhanced"], gt_image)
-            corrected_metrics = compute_metrics(outputs["color_corrected"], gt_image)
-            corrected_b_metrics = compute_metrics(outputs["color_corrected_b"], gt_image)
+            linear_correction_metrics = compute_metrics(
+                outputs["linear_color_corrected"],
+                gt_image,
+            )
 
             save_gray_image(result_dirs["t0"] / filename, outputs["t0"])
             save_gray_image(result_dirs["smooth"] / filename, outputs["smooth"])
             save_color_image(result_dirs["enhanced"] / filename, outputs["enhanced"])
-            save_color_image(result_dirs["corrected"] / filename, outputs["color_corrected"])
-            save_color_image(result_dirs["corrected_b"] / filename, outputs["color_corrected_b"])
+            save_color_image(
+                result_dirs["linear_corrected"] / filename,
+                outputs["linear_color_corrected"],
+            )
 
             comparison = build_comparison_image(
                 input_image=input_image,
                 enhanced_image=outputs["enhanced"],
                 gt_image=gt_image,
             )
-            corrected_comparison = build_comparison_image(
+            linear_corrected_comparison = build_comparison_image(
                 input_image=input_image,
-                enhanced_image=outputs["color_corrected"],
-                gt_image=gt_image,
-            )
-            corrected_b_comparison = build_comparison_image(
-                input_image=input_image,
-                enhanced_image=outputs["color_corrected_b"],
+                enhanced_image=outputs["linear_color_corrected"],
                 gt_image=gt_image,
             )
             save_color_image(result_dirs["comparisons"] / filename, comparison)
             save_color_image(
-                result_dirs["corrected_comparisons"] / filename,
-                corrected_comparison,
-            )
-            save_color_image(
-                result_dirs["corrected_b_comparisons"] / filename,
-                corrected_b_comparison,
+                result_dirs["linear_corrected_comparisons"] / filename,
+                linear_corrected_comparison,
             )
 
             metrics_rows_append(metrics_rows, filename, metrics)
-            metrics_rows_append(corrected_metrics_rows, filename, corrected_metrics)
-            metrics_rows_append(corrected_b_metrics_rows, filename, corrected_b_metrics)
+            metrics_rows_append(
+                linear_correction_metrics_rows,
+                filename,
+                linear_correction_metrics,
+            )
 
             print_metrics(metrics, f"{method}/{filename}")
-            print_metrics(corrected_metrics, f"{method}_corrected/{filename}")
-            print_metrics(corrected_b_metrics, f"{method}_corrected_b/{filename}")
+            print_metrics(
+                linear_correction_metrics,
+                f"{method}_linear_corrected/{filename}",
+            )
 
         average_metrics = compute_average_metrics(metrics_rows)
-        corrected_average_metrics = compute_average_metrics(corrected_metrics_rows)
-        corrected_b_average_metrics = compute_average_metrics(corrected_b_metrics_rows)
+        linear_correction_average_metrics = compute_average_metrics(
+            linear_correction_metrics_rows
+        )
 
         metrics_rows_append(metrics_rows, "average", average_metrics)
-        metrics_rows_append(corrected_metrics_rows, "average", corrected_average_metrics)
-        metrics_rows_append(corrected_b_metrics_rows, "average", corrected_b_average_metrics)
+        metrics_rows_append(
+            linear_correction_metrics_rows,
+            "average",
+            linear_correction_average_metrics,
+        )
 
         save_csv(result_dirs["root"] / "metrics.csv", metrics_rows)
-        save_csv(result_dirs["root"] / "corrected_metrics.csv", corrected_metrics_rows)
-        save_csv(result_dirs["root"] / "corrected_b_metrics.csv", corrected_b_metrics_rows)
+        save_csv(
+            result_dirs["root"] / "linear_corrected_metrics.csv",
+            linear_correction_metrics_rows,
+        )
 
         metrics_rows_append(comparison_summary_rows, method, average_metrics)
         metrics_rows_append(
-            corrected_comparison_summary_rows,
+            linear_correction_summary_rows,
             method,
-            corrected_average_metrics,
-        )
-        metrics_rows_append(
-            corrected_b_comparison_summary_rows,
-            method,
-            corrected_b_average_metrics,
+            linear_correction_average_metrics,
         )
 
         print(f"方法 {method} 处理完成，共 {len(paired_images)} 张图像。")
         print_metrics(average_metrics, f"{method}/average")
-        print_metrics(corrected_average_metrics, f"{method}_corrected/average")
-        print_metrics(corrected_b_average_metrics, f"{method}_corrected_b/average")
+        print_metrics(
+            linear_correction_average_metrics,
+            f"{method}_linear_corrected/average",
+        )
         print(f"指标文件已保存到: {result_dirs['root'] / 'metrics.csv'}")
-        print(f"色彩校正 A 指标文件已保存到: {result_dirs['root'] / 'corrected_metrics.csv'}")
-        print(f"色彩校正 B 指标文件已保存到: {result_dirs['root'] / 'corrected_b_metrics.csv'}")
+        print(
+            "线性色彩校正指标文件已保存到: "
+            f"{result_dirs['root'] / 'linear_corrected_metrics.csv'}"
+        )
 
     save_csv(RESULTS_DIR / "comparison_summary.csv", comparison_summary_rows)
     save_csv(
-        RESULTS_DIR / "corrected_comparison_summary.csv",
-        corrected_comparison_summary_rows,
-    )
-    save_csv(
-        RESULTS_DIR / "corrected_b_comparison_summary.csv",
-        corrected_b_comparison_summary_rows,
+        RESULTS_DIR / "linear_corrected_comparison_summary.csv",
+        linear_correction_summary_rows,
     )
     print(f"两种方法的平均指标汇总已保存到: {RESULTS_DIR / 'comparison_summary.csv'}")
     print(
-        "两种方法的色彩校正 A 平均指标汇总已保存到: "
-        f"{RESULTS_DIR / 'corrected_comparison_summary.csv'}"
-    )
-    print(
-        "两种方法的色彩校正 B 平均指标汇总已保存到: "
-        f"{RESULTS_DIR / 'corrected_b_comparison_summary.csv'}"
+        "两种方法的线性色彩校正平均指标汇总已保存到: "
+        f"{RESULTS_DIR / 'linear_corrected_comparison_summary.csv'}"
     )
 
 
