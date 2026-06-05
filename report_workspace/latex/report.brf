@@ -7,8 +7,11 @@
 \backcite {wei2018retinexnet}{{1}{1}{equation.1}}
 \backcite {zhang2019kind}{{1}{1}{equation.1}}
 \backcite {guo2023survey}{{1}{1}{equation.1}}
+\backcite {zhang2022dccnet}{{1}{1}{equation.1}}
 \backcite {tomasi1998bilateral}{{2}{2.2}{equation.3}}
 \backcite {he2010guided}{{2}{2.2}{equation.5}}
 \backcite {he2013guided}{{2}{2.2}{equation.5}}
 \backcite {wang2004ssim}{{2}{6}{Item.6}}
 \backcite {zhang2018lpips}{{2}{6}{Item.6}}
+\backcite {zhang2022dccnet}{{7}{3.5}{subsection.3.5}}
+\backcite {robertson1977cielab}{{7}{3.5}{equation.11}}

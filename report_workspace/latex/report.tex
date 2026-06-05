@@ -9,8 +9,8 @@
 
 \title{基于双边滤波与引导滤波的低光照图像增强实验报告}
 
-\author{作者信息待填写\\
-{\tt\small 学号待填写}}
+\author{寇骥志\quad 于睿楠\\
+{\tt\small PB23061068 \quad PB23061098}}
 
 \begin{document}
 \maketitle
@@ -31,7 +31,7 @@ I(x)=R(x)\cdot T(x),
 
 从研究路线看，低光照增强大致可以分为三类。第一类是基于图像先验的传统方法，例如直方图均衡、Gamma 校正、Retinex 系列方法以及基于照明图估计的方法。LIME 通过直接估计照明图并施加结构先验，证明了照明建模对增强质量的重要性 \cite{guo2016lime}。第二类是基于边缘保持滤波的增强方法，这类方法通常先从输入图像中估计粗略照明图，再通过双边滤波或引导滤波抑制纹理和噪声，兼顾平滑性与边缘保持 \cite{tomasi1998bilateral,he2010guided,he2013guided}。第三类是深度学习方法，包括 Retinex-Net、KinD、Zero-DCE 等代表性工作，它们能够在大规模训练数据上学习更复杂的亮度映射或分解关系，但通常依赖训练数据、计算资源和更复杂的模型设计 \cite{wei2018retinexnet,zhang2019kind,guo2020zerodce}。
 
-近年来的综述研究指出，传统方法在可解释性、实现成本和小样本场景中仍具有优势，而学习型方法在视觉质量和泛化能力上表现更强 \cite{guo2023survey}。除亮度恢复外，颜色失真也是低光照增强中的常见问题，许多增强方法在提升亮度的同时会引入偏色、饱和度不稳定或局部色彩漂移，因此颜色校正或颜色约束同样是提升结果自然性的重要环节。对本次课程作业而言，基于双边滤波与引导滤波的 Retinex 型方法具有结构清晰、参数可解释、便于展示中间结果和分析实验现象等优点，因此本文以其作为主体增强框架，并进一步引入利用原图色度信息的线性色彩校正，构成“亮度恢复 + 色彩修正”的完整实验方案。
+近年来的综述研究指出，传统方法在可解释性、实现成本和小样本场景中仍具有优势，而学习型方法在视觉质量和泛化能力上表现更强 \cite{guo2023survey}。除亮度恢复外，颜色失真也是低光照增强中的常见问题，许多增强方法在提升亮度的同时会引入偏色、饱和度不稳定或局部色彩漂移，因此颜色校正或颜色约束同样是提升结果自然性的重要环节 \cite{zhang2022dccnet}。对本次课程作业而言，基于双边滤波与引导滤波的 Retinex 型方法具有结构清晰、参数可解释、便于展示中间结果和分析实验现象等优点，因此本文以其作为主体增强框架，并围绕增强后仍存在的色彩漂移问题，额外设计了一个利用原图色度信息的线性色彩校正步骤，从而形成“亮度恢复 + 色彩修正”的完整实验方案。
 
 \section{本文研究方法}
 \subsection{初始照明图估计}
@@ -71,7 +71,7 @@ J_c(x)=\frac{I_c(x)}{\max(T(x),T_{\min})^\gamma},
 其中 $J_c(x)$ 表示输出图像在通道 $c$ 上的像素值，$T_{\min}$ 用于避免极暗区域分母过小导致数值不稳定，$\gamma$ 用于调节增强强度。增强后再将结果裁剪到 $[0,1]$，以便保存图像和计算指标。
 
 \subsection{线性色彩校正}
-在增强结果基础上，本文进一步引入线性色彩校正，以缓解增强后可能出现的偏色和局部色彩漂移。设原图的 Lab 表示为 $(L_i,a_i,b_i)$，增强结果的 Lab 表示为 $(L_j,a_j,b_j)$，则保持增强结果亮度分量 $L_j$ 不变，仅对色度分量进行融合：
+针对增强结果中仍可能出现的偏色和局部色彩漂移，本文进一步设计了一种线性色彩校正方法。该方法不改变前面已经恢复出的亮度结构，而是只在 Lab 色度平面内对颜色进行再分配。设原图的 Lab 表示为 $(L_i,a_i,b_i)$，增强结果的 Lab 表示为 $(L_j,a_j,b_j)$，则保持增强结果亮度分量 $L_j$ 不变，仅对色度分量进行融合：
 \begin{equation}
 a_j'=(1-\alpha)a_j+\alpha a_i,
 \end{equation}
@@ -86,7 +86,7 @@ b_j'=(1-\alpha)b_j+\alpha b_i,
 \begin{equation}
 J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 \end{equation}
-该设计的直观含义是：亮度结构完全保留增强结果，而颜色信息由增强结果与原图色度共同决定。由于原图亮区的颜色通常比极暗区域更可靠，因此通过原图亮度 $L_i$ 对融合系数进行调制，使较亮区域更多参考原图色度，暗区则减少原图噪声色度的影响。本文默认取 $\alpha_{\max}=0.5$。
+该方法的核心思想是：亮度结构完全保留增强结果，而颜色信息由增强结果与原图色度共同决定。与简单的全局色度压缩不同，本文将原图亮度 $L_i$ 作为融合权重的调制依据，使原图中颜色更可信的较亮区域承担更多色彩约束，而极暗区域则自动减弱原图噪声色度的影响。这样既保留了增强结果的亮度恢复能力，又为颜色修正引入了一个简单且可解释的原图先验。本文默认取 $\alpha_{\max}=0.5$。
 
 \subsection{算法流程}
 本文方法可以概括为以下步骤：
@@ -101,16 +101,16 @@ J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{初始照明图 $T_0$}{
-        \includegraphics[width=0.31\linewidth]{../assets/figures/t0_default_00017.png}
+    \subcaptionbox{初始照明图 $T_0$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/t0_default_00017.png}
     }
     \hfill
-    \subcaptionbox{双边滤波平滑结果}{
-        \includegraphics[width=0.31\linewidth]{../assets/figures/smooth_bilateral_default_00017.png}
+    \subcaptionbox{双边滤波平滑结果}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/smooth_bilateral_default_00017.png}
     }
     \hfill
-    \subcaptionbox{引导滤波平滑结果}{
-        \includegraphics[width=0.31\linewidth]{../assets/figures/smooth_guided_default_00017.png}
+    \subcaptionbox{引导滤波平滑结果}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/smooth_guided_default_00017.png}
     }
     \caption{样本 \texttt{00017.png} 的中间结果示意。双边滤波得到的照明图更平滑，但边缘附近略有扩散；引导滤波保留了更多结构边界。}
     \label{fig:intermediate}
@@ -151,11 +151,11 @@ J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{双边滤波结果}{
+    \subcaptionbox{双边滤波结果}[0.95\linewidth]{
         \includegraphics[width=\linewidth]{../assets/figures/comparison_bilateral_default_00017.png}
     }
-    \\
-    \subcaptionbox{引导滤波结果}{
+    \\[0.5em]
+    \subcaptionbox{引导滤波结果}[0.95\linewidth]{
         \includegraphics[width=\linewidth]{../assets/figures/comparison_guided_default_00017.png}
     }
     \caption{困难样本 \texttt{00017.png} 的定性结果。每行从左到右分别为输入图像、增强结果和 Ground Truth。}
@@ -166,11 +166,11 @@ J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{\texttt{00051.png}}{
+    \subcaptionbox{\texttt{00051.png}}[0.95\linewidth]{
         \includegraphics[width=\linewidth]{../assets/figures/comparison_guided_default_00051.png}
     }
-    \\
-    \subcaptionbox{\texttt{00091.png}}{
+    \\[0.5em]
+    \subcaptionbox{\texttt{00091.png}}[0.95\linewidth]{
         \includegraphics[width=\linewidth]{../assets/figures/comparison_guided_default_00091.png}
     }
     \caption{两个代表性样本的引导滤波增强结果。每行从左到右分别为输入图像、增强结果和 Ground Truth。}
@@ -266,28 +266,28 @@ J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{$d=3$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/bilateral_d3/smooth/00017.png}
+    \subcaptionbox{$d=3$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/bilateral_d3/smooth/00017.png}
     }
     \hfill
-    \subcaptionbox{$d=35$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/bilateral_d35/smooth/00017.png}
+    \subcaptionbox{$d=35$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/bilateral_d35/smooth/00017.png}
     }
     \hfill
-    \subcaptionbox{$\sigma_{color}=0.01$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/bilateral_sc001/smooth/00017.png}
+    \subcaptionbox{$\sigma_{color}=0.01$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/bilateral_sc001/smooth/00017.png}
     }
-    \\
-    \subcaptionbox{$\sigma_{color}=0.40$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/bilateral_sc040/smooth/00017.png}
-    }
-    \hfill
-    \subcaptionbox{$\sigma_{space}=3$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/bilateral_ss3/smooth/00017.png}
+    \\[0.5em]
+    \subcaptionbox{$\sigma_{color}=0.40$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/bilateral_sc040/smooth/00017.png}
     }
     \hfill
-    \subcaptionbox{$\sigma_{space}=90$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/bilateral_ss90/smooth/00017.png}
+    \subcaptionbox{$\sigma_{space}=3$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/bilateral_ss3/smooth/00017.png}
+    }
+    \hfill
+    \subcaptionbox{$\sigma_{space}=90$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/bilateral_ss90/smooth/00017.png}
     }
     \caption{样本 \texttt{00017.png} 在双边滤波不同参数下的照明图平滑结果。可以看到，$d$ 和 $\sigma_{color}$ 对局部结构影响更明显，而 $\sigma_{space}$ 的变化相对较弱。}
     \label{fig:bilateral_qualitative}
@@ -353,19 +353,19 @@ J_{cc}=\mathrm{Lab}^{-1}(L_j,a_j',b_j').
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{$r=2$ 时的平滑照明图}{
-        \includegraphics[width=0.48\linewidth]{../assets/experiments/guided_r2/smooth/00017.png}
+    \subcaptionbox{$r=2$ 时的平滑照明图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_r2/smooth/00017.png}
     }
     \hfill
-    \subcaptionbox{$r=32$ 时的平滑照明图}{
-        \includegraphics[width=0.48\linewidth]{../assets/experiments/guided_r32/smooth/00017.png}
+    \subcaptionbox{$r=32$ 时的平滑照明图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_r32/smooth/00017.png}
     }\\[0.5em]
-    \subcaptionbox{$\epsilon=10^{-6}$ 时的平滑照明图}{
-        \includegraphics[width=0.48\linewidth]{../assets/experiments/guided_eps1e-6/smooth/00017.png}
+    \subcaptionbox{$\epsilon=10^{-6}$ 时的平滑照明图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_eps1e-6/smooth/00017.png}
     }
     \hfill
-    \subcaptionbox{$\epsilon=10^{-1}$ 时的平滑照明图}{
-        \includegraphics[width=0.48\linewidth]{../assets/experiments/guided_eps1e-1/smooth/00017.png}
+    \subcaptionbox{$\epsilon=10^{-1}$ 时的平滑照明图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_eps1e-1/smooth/00017.png}
     }
     \caption{样本 \texttt{00017.png} 在不同引导滤波参数下的平滑照明图对比。增大半径会使照明估计更趋于全局一致；过大的 $\epsilon$ 会减弱局部结构响应，使边界区域出现更明显的平滑。}
     \label{fig:guided_intermediate}
@@ -401,28 +401,28 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{$T_{\min}=0.02$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_tmin002/enhanced/00017.png}
+    \subcaptionbox{$T_{\min}=0.02$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_tmin002/enhanced/00017.png}
     }
     \hfill
-    \subcaptionbox{$T_{\min}=0.05$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_tmin005/enhanced/00017.png}
+    \subcaptionbox{$T_{\min}=0.05$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_tmin005/enhanced/00017.png}
     }
     \hfill
-    \subcaptionbox{$T_{\min}=0.08$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_tmin008/enhanced/00017.png}
+    \subcaptionbox{$T_{\min}=0.08$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_tmin008/enhanced/00017.png}
     }
-    \\
-    \subcaptionbox{$T_{\min}=0.10$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_tmin010/enhanced/00017.png}
-    }
-    \hfill
-    \subcaptionbox{$T_{\min}=0.15$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_tmin015/enhanced/00017.png}
+    \\[0.5em]
+    \subcaptionbox{$T_{\min}=0.10$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_tmin010/enhanced/00017.png}
     }
     \hfill
-    \subcaptionbox{$T_{\min}=0.25$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_tmin025/enhanced/00017.png}
+    \subcaptionbox{$T_{\min}=0.15$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_tmin015/enhanced/00017.png}
+    }
+    \hfill
+    \subcaptionbox{$T_{\min}=0.25$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_tmin025/enhanced/00017.png}
     }
     \caption{样本 \texttt{00017.png} 在不同增强下限参数下的增强结果。较小的 $T_{\min}$ 会更强烈地拉升暗区，同时更容易放大噪声；较大的 $T_{\min}$ 则会抑制过增强，但也可能使整体亮度恢复不足。}
     \label{fig:tmin_qualitative}
@@ -458,69 +458,69 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{$\gamma=0.4$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_gamma04/enhanced/00017.png}
+    \subcaptionbox{$\gamma=0.4$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_gamma04/enhanced/00017.png}
     }
     \hfill
-    \subcaptionbox{$\gamma=0.6$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_gamma06/enhanced/00017.png}
+    \subcaptionbox{$\gamma=0.6$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_gamma06/enhanced/00017.png}
     }
     \hfill
-    \subcaptionbox{$\gamma=0.8$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_gamma08/enhanced/00017.png}
+    \subcaptionbox{$\gamma=0.8$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_gamma08/enhanced/00017.png}
     }
-    \\
-    \subcaptionbox{$\gamma=1.0$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_gamma10/enhanced/00017.png}
-    }
-    \hfill
-    \subcaptionbox{$\gamma=1.2$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_gamma12/enhanced/00017.png}
+    \\[0.5em]
+    \subcaptionbox{$\gamma=1.0$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_gamma10/enhanced/00017.png}
     }
     \hfill
-    \subcaptionbox{$\gamma=1.4$}{
-        \includegraphics[width=0.31\linewidth]{../assets/experiments/guided_gamma14/enhanced/00017.png}
+    \subcaptionbox{$\gamma=1.2$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_gamma12/enhanced/00017.png}
+    }
+    \hfill
+    \subcaptionbox{$\gamma=1.4$}[0.31\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/experiments/guided_gamma14/enhanced/00017.png}
     }
     \caption{样本 \texttt{00017.png} 在不同增强指数下的增强结果。较小的 $\gamma$ 会导致整体偏暗、增强不足；较大的 $\gamma$ 虽能显著提亮暗区，但会同时带来更强的噪声放大和局部过曝。}
     \label{fig:gamma_qualitative}
 \end{figure}
 
 \subsection{线性色彩校正实验}
-在前述增强结果的基础上，仍可观察到部分样本存在较明显的色偏。以 \texttt{00051.png} 和 \texttt{00091.png} 为例，guided 默认参数增强后的亮度恢复已经较为充分，但植物边缘、锅体高亮区域和墙面过渡区域仍出现与 Ground Truth 不一致的色度偏移。为了定量描述这一现象，本文继续采用 Lab 空间中忽略亮度后的色度距离
+为验证本文所设计线性色彩校正步骤的有效性，本节单独考察其对增强结果色差的改善作用。在前述增强结果的基础上，仍可观察到部分样本存在较明显的色偏。以 \texttt{00051.png} 和 \texttt{00091.png} 为例，guided 默认参数增强后的亮度恢复已经较为充分，但植物边缘、锅体高亮区域和墙面过渡区域仍出现与 Ground Truth 不一致的色度偏移。这也与已有研究中指出的“低照度增强后仍可能存在颜色一致性问题”的现象相一致 \cite{zhang2022dccnet}。为了定量描述这一现象，本文继续采用 Lab 空间中忽略亮度后的色度距离
 \begin{equation}
 \Delta ab(x)=\sqrt{(a(x)-a_{GT}(x))^2+(b(x)-b_{GT}(x))^2},
 \end{equation}
-并将其绘制为热力图。图 \ref{fig:ccb_heatmap_before} 表明，两张代表样本的高误差区域主要集中在暖色高亮边界、植物叶片反光以及局部暗区纹理处，这说明单纯依赖增强后的色度响应仍会带来一定的颜色漂移。
+并将其绘制为热力图。这里使用 Lab 色度平面上的距离来刻画颜色偏差，其基本思想与 CIELAB 色差度量中“在感知更均匀的色彩空间内比较颜色差异”的做法一致 \cite{robertson1977cielab}。图 \ref{fig:ccb_heatmap_before} 表明，两张代表样本的高误差区域主要集中在暖色高亮边界、植物叶片反光以及局部暗区纹理处，这说明单纯依赖增强后的色度响应仍会带来一定的颜色漂移。
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{00051.png 的 $\Delta ab$ 热力图}{
-        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_enhanced_00051.png}
+    \subcaptionbox{00051.png 的 $\Delta ab$ 热力图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/ccb_deltaab_enhanced_00051.png}
     }
     \hfill
-    \subcaptionbox{00091.png 的 $\Delta ab$ 热力图}{
-        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_enhanced_00091.png}
+    \subcaptionbox{00091.png 的 $\Delta ab$ 热力图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/ccb_deltaab_enhanced_00091.png}
     }
     \caption{默认 guided 增强结果的 Lab 色度距离热力图。暖色高亮边缘和局部材质纹理处的色差更明显。}
     \label{fig:ccb_heatmap_before}
 \end{figure}
 
-在前述方法基础上，本文进一步考察线性色彩校正对最终结果的影响。该步骤保持增强结果亮度不变，并利用原图较可信区域的色度信息对增强结果进行自适应回拉，因此既能保持亮度恢复效果，又能在一定程度上缓解颜色漂移。
+在主体增强流程之后，本文将所设计的线性色彩校正步骤作用于最终结果。该步骤保持增强结果亮度不变，并利用原图较可信区域的色度信息对增强结果进行自适应回拉，因此既能保持亮度恢复效果，又能在一定程度上缓解颜色漂移。
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{\texttt{00051.png}}{
+    \subcaptionbox{\texttt{00051.png}}[0.95\linewidth]{
         \includegraphics[width=\linewidth]{../assets/figures/ccb_compare_corrected_00051.png}
     }
-    \\
-    \subcaptionbox{\texttt{00091.png}}{
+    \\[0.5em]
+    \subcaptionbox{\texttt{00091.png}}[0.95\linewidth]{
         \includegraphics[width=\linewidth]{../assets/figures/ccb_compare_corrected_00091.png}
     }
     \caption{线性色彩校正的代表性结果。每行从左到右分别为输入图像、线性色彩校正结果和 Ground Truth。}
     \label{fig:ccb_comparison}
 \end{figure}
 
-表 \ref{tab:ccb_selected} 给出了两张代表样本在线性色彩校正前后的指标变化。可以看到，线性色彩校正在 \texttt{00051.png} 和 \texttt{00091.png} 上均同时改善了 PSNR、SSIM、LPIPS 与 $\Delta ab$。其中 \texttt{00051.png} 的 $\Delta ab$ 从 11.2778 降至 10.5267，\texttt{00091.png} 的 $\Delta ab$ 从 6.9758 降至 6.6622。虽然改变量小于强全局压缩型方法，但视觉上保留了更多增强结果自身的色彩氛围，同时对高亮边缘的色偏有一定抑制作用。
+表 \ref{tab:ccb_selected} 给出了两张代表样本在线性色彩校正前后的指标变化。可以看到，本文提出的线性色彩校正在 \texttt{00051.png} 和 \texttt{00091.png} 上均同时改善了 PSNR、SSIM、LPIPS 与 $\Delta ab$。其中 \texttt{00051.png} 的 $\Delta ab$ 从 11.2778 降至 10.5267，\texttt{00091.png} 的 $\Delta ab$ 从 6.9758 降至 6.6622。说明这种“保持亮度不变、仅在线性色度融合层面做修正”的设计，能够在保留增强结果整体氛围的同时，对高亮边缘和局部材质区域的色偏起到稳定抑制作用。
 
 \begin{table}[t]
     \centering
@@ -539,7 +539,7 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
     \end{tabular}
 \end{table}
 
-从整组测试集的平均结果来看，线性色彩校正同样带来了稳定提升。表 \ref{tab:ccb_average} 显示，在默认 guided 参数 $r=8,\epsilon=10^{-3},T_{\min}=0.1,\gamma=0.8$ 下，加入线性色彩校正后，平均 PSNR 从 18.4591 dB 提升到 18.5382 dB，SSIM 从 0.6285 提升到 0.6353，LPIPS 从 0.2486 下降到 0.2466，$\Delta ab$ 从 9.5235 下降到 9.0655。说明原图色度先验虽然较弱，但通过亮度自适应融合后，仍能对增强结果提供稳定的颜色约束。
+从整组测试集的平均结果来看，线性色彩校正同样带来了稳定提升。表 \ref{tab:ccb_average} 显示，在默认 guided 参数 $r=8,\epsilon=10^{-3},T_{\min}=0.1,\gamma=0.8$ 下，加入本文设计的线性色彩校正后，平均 PSNR 从 18.4591 dB 提升到 18.5382 dB，SSIM 从 0.6285 提升到 0.6353，LPIPS 从 0.2486 下降到 0.2466，$\Delta ab$ 从 9.5235 下降到 9.0655。说明原图色度先验虽然较弱，但通过亮度自适应融合后，仍能对增强结果提供稳定的颜色约束，也说明这一额外设计在当前数据上具有实际效果。不过，从数值变化幅度看，这一改进更偏向于对颜色一致性的温和修正，而不是对整体增强质量的剧烈重构，因此其收益主要体现在色差收缩和局部视觉自然性的改善上。
 
 \begin{table}[t]
     \centering
@@ -555,23 +555,23 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
     \end{tabular}
 \end{table}
 
-图 \ref{fig:ccb_heatmap_after} 给出了线性色彩校正后的 $\Delta ab$ 热力图。与图 \ref{fig:ccb_heatmap_before} 对比可见，00051 的植物和椅背高亮边缘、00091 的锅体高亮边界处，暖色高误差区域均有所收缩。由于该方法仅在色度上做线性融合，且暗区的 $\alpha(x)$ 较小，因此它不会像强全局压缩那样显著改变整幅图像的色彩风格，而更偏向于一种保守的颜色回拉。
+图 \ref{fig:ccb_heatmap_after} 给出了线性色彩校正后的 $\Delta ab$ 热力图。与图 \ref{fig:ccb_heatmap_before} 对比可见，00051 的植物和椅背高亮边缘、00091 的锅体高亮边界处，暖色高误差区域均有所收缩。由于本文方法仅在色度上做线性融合，且暗区的 $\alpha(x)$ 较小，因此它不会像强全局压缩那样显著改变整幅图像的色彩风格，而更偏向于一种保守但稳定的颜色回拉。
 
 \begin{figure}[t]
     \centering
-    \subcaptionbox{00051.png 校正后的 $\Delta ab$ 热力图}{
-        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_corrected_00051.png}
+    \subcaptionbox{00051.png 校正后的 $\Delta ab$ 热力图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/ccb_deltaab_corrected_00051.png}
     }
     \hfill
-    \subcaptionbox{00091.png 校正后的 $\Delta ab$ 热力图}{
-        \includegraphics[width=0.48\linewidth]{../assets/figures/ccb_deltaab_corrected_00091.png}
+    \subcaptionbox{00091.png 校正后的 $\Delta ab$ 热力图}[0.48\linewidth]{
+        \includegraphics[width=\linewidth]{../assets/figures/ccb_deltaab_corrected_00091.png}
     }
     \caption{线性色彩校正的 Lab 色度距离热力图。高色差区域较增强前有所减弱，但整体色彩风格保持更接近增强结果。}
     \label{fig:ccb_heatmap_after}
 \end{figure}
 
 \paragraph{融合上限参数 $\alpha_{\max}$}
-为分析原图色度参与程度对结果的影响，本文在默认 guided 参数下，进一步测试了 $\alpha_{\max}=0.0,0.1,0.2,0.3,0.4,0.5$ 六组取值。表 \ref{tab:ccb_alpha} 与图 \ref{fig:ccb_alpha_curve} 显示，在当前数据集上，随着 $\alpha_{\max}$ 增大，PSNR、SSIM 持续上升，而 $\Delta ab$ 与 LPIPS 持续下降，呈现较稳定的单调趋势。以极值组为例，当 $\alpha_{\max}$ 从 0 增加到 0.5 时，平均 PSNR 从 18.4357 dB 提升到 18.5382 dB，SSIM 从 0.6284 提升到 0.6353，$\Delta ab$ 从 9.5096 降至 9.0655。说明在当前实验范围内，原图色度先验仍未被过度使用，较大的融合上限反而更有利于抑制增强结果中的颜色漂移。
+为分析本文所设计融合机制中关键参数对结果的影响，本文在默认 guided 参数下，进一步测试了 $\alpha_{\max}=0.0,0.1,0.2,0.3,0.4,0.5$ 六组取值。表 \ref{tab:ccb_alpha} 与图 \ref{fig:ccb_alpha_curve} 显示，在当前数据集上，随着 $\alpha_{\max}$ 增大，PSNR、SSIM 持续上升，而 $\Delta ab$ 与 LPIPS 持续下降，呈现较稳定的单调趋势。以极值组为例，当 $\alpha_{\max}$ 从 0 增加到 0.5 时，平均 PSNR 从 18.4357 dB 提升到 18.5382 dB，SSIM 从 0.6284 提升到 0.6353，$\Delta ab$ 从 9.5096 降至 9.0655。说明在当前实验范围内，原图色度先验仍未被过度使用，较大的融合上限反而更有利于抑制增强结果中的颜色漂移，也从侧面验证了这种亮度自适应线性融合设计的合理性。
 
 \begin{table}[t]
     \centering
@@ -614,10 +614,14 @@ $T_{\min}$ 用于限制分母中的最小照明值，从而避免极暗区域被
     \item 对双边滤波而言，邻域直径 $d$ 的影响最显著，值域参数 $\sigma_{color}$ 次之，而空间域参数 $\sigma_{space}$ 的影响最弱；
     \item 对引导滤波而言，较大的窗口半径在当前样本上表现更稳定，而正则参数 $\epsilon$ 则体现出明显的保边与过平滑折中；
     \item 对增强参数而言，$T_{\min}$ 与 $\gamma$ 共同控制暗区补偿幅度，其中较小的 $T_{\min}$ 有利于提升像素级误差指标，但更容易放大噪声；$\gamma=0.8$ 在当前数据上取得了最平衡的结果，过小会增强不足，过大则会导致明显的过增强和感知质量恶化；
-    \item 在线性色彩校正阶段，利用原图 Lab 色度信息进行亮度自适应融合，能够在基本保持亮度结构的前提下进一步减小色差，改善颜色一致性。
+    \item 在线性色彩校正阶段，本文额外设计了利用原图 Lab 色度信息进行亮度自适应融合的颜色修正步骤，能够在基本保持亮度结构的前提下进一步减小色差，改善颜色一致性。
 \end{enumerate}
 
-本文方法的优点是结构清晰、实现简单、可解释性强，并且能够直接输出初始照明图、平滑照明图、增强结果以及颜色校正结果等中间步骤。其不足在于：第一，照明估计仍采用最大通道近似，难以应对复杂光照和严重色偏；第二，参数仍依赖人工设置，不同图像上的最优取值并不完全一致；第三，在极暗样本中，增强后仍会放大噪声，线性色彩校正对这类区域的改善也相对有限。后续可尝试更稳健的照明图先验、联合去噪机制，或引入学习型方法进一步提升结果。
+从方法特点看，本文方案的优势主要体现在三个方面。第一，整体流程结构清晰，从初始照明估计、边缘保持平滑、照明补偿到线性色彩校正，均具有明确的物理或统计直觉，便于解释每一步对结果的影响。第二，参数含义较为明确，双边滤波、引导滤波以及增强公式中的关键参数都可以通过控制变量实验观察其作用趋势。第三，系统能够直接输出初始照明图、平滑照明图、增强结果、色差热力图以及颜色校正结果等中间产物，便于在课程报告中展示算法步骤和实验现象。
+
+与此同时，本文方法也存在较为明显的局限性。第一，照明估计仍采用最大通道近似，这一假设较为粗糙，在复杂光照、强反光或明显彩色光源条件下，估计得到的 $T_0$ 可能混入较多反射和颜色信息，从而限制后续恢复质量。第二，多个环节仍依赖人工设参，不同样本上的最优 $d$、$\sigma_{color}$、$r$、$\epsilon$、$T_{\min}$ 和 $\gamma$ 并不完全一致，这说明方法在跨场景时的自适应性仍然有限。第三，从极暗样本和参数实验可以看出，增强过程会放大暗区噪声，并可能引入局部过增强或边缘泛灰现象；即使引导滤波和线性色彩校正能够缓解其中一部分问题，也难以从根本上消除噪声放大。第四，本文提出的线性色彩校正本质上是一种保守修正，它主要改善色差和颜色一致性，但对严重偏色区域的修正能力仍然有限，且过分依赖原图色度时也可能把原始偏色一并带回结果中。
+
+后续工作可从三个方向继续展开：一是引入更稳健的照明图先验或分解模型，以提高复杂场景下的亮度估计精度；二是将增强与去噪更紧密地联合起来，降低暗区细节恢复时的噪声放大；三是继续改进颜色校正策略，例如结合更可靠的区域选择机制或更强的颜色先验，以进一步提升复杂场景中的色彩自然性。
 
 {\small
 \bibliographystyle{ieeenat_fullname}

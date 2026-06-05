@@ -1,4 +1,4 @@
-\begin{thebibliography}{11}
+\begin{thebibliography}{13}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -35,6 +35,11 @@ Edwin~H. Land and John~J. McCann.
 \newblock Lightness and retinex theory.
 \newblock \emph{Journal of the Optical Society of America}, 61\penalty0 (1):\penalty0 1--11, 1971.
 
+\bibitem[Robertson(1977)]{robertson1977cielab}
+Alan~R. Robertson.
+\newblock The cie 1976 color-difference formulae.
+\newblock \emph{Color Research \& Application}, 2\penalty0 (1):\penalty0 7--11, 1977.
+
 \bibitem[Tomasi and Manduchi(1998)]{tomasi1998bilateral}
 Carlo Tomasi and Roberto Manduchi.
 \newblock Bilateral filtering for gray and color images.
@@ -59,5 +64,10 @@ Richard Zhang, Phillip Isola, Alexei~A. Efros, Eli Shechtman, and Oliver Wang.
 Yonghua Zhang, Jiawan Zhang, and Xiaojie Guo.
 \newblock Kindling the darkness: A practical low-light image enhancer.
 \newblock \emph{Proceedings of the ACM International Conference on Multimedia}, pages 1632--1640, 2019.
+
+\bibitem[Zhang et~al.(2022)Zhang, Zhang, Zheng, Xue, Ren, and Guo]{zhang2022dccnet}
+Zhao Zhang, Yu Zhang, Xin Zheng, Xiangyang Xue, Jinchang Ren, and Xiaojie Guo.
+\newblock Deep color consistent network for low-light image enhancement.
+\newblock In \emph{Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition}, pages 1895--1904, 2022.
 
 \end{thebibliography}

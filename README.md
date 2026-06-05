@@ -1,69 +1,63 @@
-# 低光照图像增强作业说明
+# 低光照图像增强课程项目
 
-## 1. 项目功能
+本项目实现了一个基于 Retinex 思想的低光照图像增强实验系统，主体方法比较了 `双边滤波` 与 `引导滤波` 两种照明图平滑方式，并在增强结果之后增加了一个 `线性色彩校正` 步骤，用于缓解颜色漂移。
 
-本项目实现了一个基于 Retinex 思路的低光照图像增强最小可运行方案，当前支持两种照明图平滑方法：
+## 1. 项目内容
 
-- 双边滤波
-- 引导滤波
+当前主流程如下：
 
-整体流程如下：
-1. 读取 `samples/Train/Input` 中的低光照输入图像。
-2. 使用 RGB 三通道最大值估计初始照明图 `T0`。
-3. 使用双边滤波或引导滤波对 `T0` 进行平滑，得到照明图 `T`。
-4. 使用增强公式恢复增强结果：
+1. 从输入图像估计初始照明图 `T0`
+2. 使用双边滤波或引导滤波对照明图进行边缘保持平滑
+3. 使用增强公式恢复亮度
 
 ```text
 J = I / max(T, Tmin)^gamma
 ```
 
-5. 保存中间结果图、增强结果图和对比图。
-6. 使用 `samples/Train/GT` 作为 Ground Truth，计算增强结果与 GT 之间的评价指标。
-7. 分别保存两种方法的指标结果，并输出平均指标对比汇总表。
+4. 对增强结果执行线性色彩校正  
 
-当前已实现的评价指标包括：
+```text
+a' = (1 - alpha) * a_enhanced + alpha * a_input
+b' = (1 - alpha) * b_enhanced + alpha * b_input
+alpha = alpha_max * L_input / 100
+```
+
+5. 保存中间结果、增强结果、线性色彩校正结果和对比图
+6. 计算增强结果与 Ground Truth 之间的评价指标
+
+当前支持的方法：
+
+- `bilateral`
+- `guided`
+
+当前使用的评价指标：
+
 - `PSNR`
 - `SSIM`
 - `MAE`
 - `MSE`
 - `LPIPS`
+- `delta_ab`
 
-## 2. 环境依赖
+## 2. 环境与依赖
 
-本项目要求优先使用项目根目录下的 `.venv` Python 环境。
+请优先使用项目根目录下的 `.venv` Python 环境。
 
-当前主要依赖如下：
-- Python 3.10 及以上
-- numpy
-- opencv-contrib-python
-- scikit-image
-- matplotlib
-- pandas
-- tqdm
-- torch
-- lpips
-
-依赖文件位于：
-- [requirements.txt](C:/Users/50307/Desktop/图像处理基础/project_1/requirements.txt)
-
-如需安装依赖，可在项目根目录运行：
+安装依赖：
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-如需检查当前 Python 环境是否正确，可运行：
+检查当前 Python 是否为项目环境：
 
 ```powershell
 .\.venv\Scripts\python.exe -c "import sys; print(sys.executable)"
-.\.venv\Scripts\python.exe -m pip --version
 ```
 
-当输出路径指向项目目录下的 `.venv\Scripts\python.exe` 时，说明环境正确。
+## 3. 数据目录
 
-## 3. 数据目录格式
-
-当前数据目录结构如下：
+项目默认读取以下目录中的训练样本：
 
 ```text
 samples/
@@ -72,34 +66,30 @@ samples/
     └── GT/
 ```
 
-说明：
-- `samples/Train/Input/`：存放低光照输入图像。
-- `samples/Train/GT/`：存放对应的 Ground Truth 图像。
+程序通过文件名一一匹配 `Input` 与 `GT` 图像，例如：
 
-程序采用“同名文件匹配”的方式对齐 Input 和 GT，例如：
 - `samples/Train/Input/00001.png`
 - `samples/Train/GT/00001.png`
 
-只有当 Input 和 GT 中存在同名文件时，该图像对才会被处理。
+## 4. 运行主程序
 
-## 4. 如何运行
-
-在项目根目录下，并确保使用 `.venv` 环境后，运行：
+在项目根目录下运行：
 
 ```powershell
 .\.venv\Scripts\python.exe main.py
 ```
 
-程序运行后会：
-1. 自动遍历 `samples/Train/Input`。
-2. 查找对应的 `GT`。
-3. 分别执行双边滤波增强和引导滤波增强。
-4. 保存结果到 `results/`。
-5. 输出每张图像以及平均结果的 `PSNR`、`SSIM`、`MAE`、`MSE`、`LPIPS`。
+主程序会：
 
-## 5. 输出结果位置
+1. 遍历 `samples/Train/Input`
+2. 查找对应的 `GT`
+3. 分别执行双边滤波与引导滤波增强
+4. 计算增强结果和线性色彩校正结果的指标
+5. 保存结果到 `results/`
 
-所有结果统一保存在项目根目录下的 `results/` 文件夹中，结构如下：
+## 5. 输出结果
+
+主程序输出位于 `results/`：
 
 ```text
 results/
@@ -108,139 +98,103 @@ results/
 │   ├── smooth/
 │   ├── enhanced/
 │   ├── comparisons/
-│   └── metrics.csv
+│   ├── linear_corrected/
+│   ├── linear_corrected_comparisons/
+│   ├── metrics.csv
+│   └── linear_corrected_metrics.csv
 ├── guided/
 │   ├── t0/
 │   ├── smooth/
 │   ├── enhanced/
 │   ├── comparisons/
-│   └── metrics.csv
-└── comparison_summary.csv
+│   ├── linear_corrected/
+│   ├── linear_corrected_comparisons/
+│   ├── metrics.csv
+│   └── linear_corrected_metrics.csv
+├── comparison_summary.csv
+└── linear_corrected_comparison_summary.csv
 ```
 
-各目录含义如下：
-- `results/bilateral/`：保存双边滤波方法的全部结果。
-- `results/guided/`：保存引导滤波方法的全部结果。
-- `results/*/t0/`：保存初始照明图 `T0`。
-- `results/*/smooth/`：保存平滑后的照明图。
-- `results/*/enhanced/`：保存增强结果图像。
-- `results/*/comparisons/`：保存 `Input / Enhanced / GT` 三图拼接对比图。
-- `results/*/metrics.csv`：保存对应方法下每张图像以及平均结果的各项评价指标。
-- `results/comparison_summary.csv`：保存两种方法平均指标的汇总结果。
+说明：
 
-## 6. 评价指标说明
+- `t0/`：初始照明图
+- `smooth/`：平滑后的照明图
+- `enhanced/`：增强结果
+- `comparisons/`：`Input / Enhanced / GT` 拼接图
+- `linear_corrected/`：线性色彩校正结果
+- `linear_corrected_comparisons/`：`Input / Linear Corrected / GT` 拼接图
+- `metrics.csv`：增强结果的逐图像与平均指标
+- `linear_corrected_metrics.csv`：线性色彩校正结果的逐图像与平均指标
 
-当前项目实现了以下 5 个评价指标：
+## 6. 当前默认参数
 
-### 6.1 PSNR
+当前默认参数定义在 [main.py](/C:/Users/50307/Desktop/图像处理基础/project_1/main.py)：
 
-PSNR 基于增强结果图像 `J` 与 Ground Truth 图像 `GT` 的均方误差 `MSE` 计算：
+- 双边滤波
+  - `BILATERAL_DIAMETER = 15`
+  - `BILATERAL_SIGMA_COLOR = 0.1`
+  - `BILATERAL_SIGMA_SPACE = 15`
+- 引导滤波
+  - `GUIDED_RADIUS = 8`
+  - `GUIDED_EPS = 1e-3`
+- 增强参数
+  - `TMIN = 0.1`
+  - `GAMMA = 0.8`
+- 线性色彩校正
+  - `LINEAR_ALPHA_MAX = 0.5`
+
+## 7. 核心代码文件
+
+- [main.py](/C:/Users/50307/Desktop/图像处理基础/project_1/main.py)
+  - 主程序入口，负责批量处理、保存结果和输出指标
+- [pipeline.py](/C:/Users/50307/Desktop/图像处理基础/project_1/pipeline.py)
+  - 实现 `T0` 估计、双边滤波、引导滤波、增强恢复和线性色彩校正
+- [metrics.py](/C:/Users/50307/Desktop/图像处理基础/project_1/metrics.py)
+  - 实现 `PSNR`、`SSIM`、`MAE`、`MSE`、`LPIPS` 和 `delta_ab`
+- [utils.py](/C:/Users/50307/Desktop/图像处理基础/project_1/utils.py)
+  - 实现图像读写、Lab 转换、色差热力图、结果目录和 CSV 保存
+
+## 8. 报告与实验脚本
+
+报告与补充实验文件集中在 `report_workspace/`：
 
 ```text
-MSE = mean((J - GT)^2)
-PSNR = 10 * log10(1 / MSE)
+report_workspace/
+├── assets/
+├── latex/
+└── scripts/
 ```
 
-说明：
-- 程序内部默认先将图像归一化到 `[0, 1]`。
-- 因此这里的峰值最大值取 `1.0`。
-- `PSNR` 越大，说明增强结果与 GT 越接近。
+其中：
 
-### 6.2 SSIM
+- 报告源码：[report_workspace/latex/report.tex](/C:/Users/50307/Desktop/图像处理基础/project_1/report_workspace/latex/report.tex)
+- 正式 PDF：[report_workspace/latex/report.pdf](/C:/Users/50307/Desktop/图像处理基础/project_1/report_workspace/latex/report.pdf)
+- 参数实验脚本：[report_workspace/scripts/run_report_experiments.py](/C:/Users/50307/Desktop/图像处理基础/project_1/report_workspace/scripts/run_report_experiments.py)
+- 线性色彩校正分析脚本：[report_workspace/scripts/run_linear_color_correction_analysis.py](/C:/Users/50307/Desktop/图像处理基础/project_1/report_workspace/scripts/run_linear_color_correction_analysis.py)
 
-SSIM 使用 `scikit-image` 标准实现计算，用于衡量增强结果与 GT 在亮度、对比度和结构上的相似性。
+重跑补充实验：
 
-说明：
-- 当前实现通过 `skimage.metrics.structural_similarity` 计算。
-- 输入图像默认已归一化到 `[0, 1]`，因此 `data_range=1.0`。
-- `SSIM` 越接近 `1`，说明结构相似性越高。
-
-### 6.3 MAE
-
-MAE 表示逐像素绝对误差的平均值：
-
-```text
-MAE = mean(abs(J - GT))
+```powershell
+.\.venv\Scripts\python.exe report_workspace\scripts\run_report_experiments.py
+.\.venv\Scripts\python.exe report_workspace\scripts\run_linear_color_correction_analysis.py
 ```
 
-说明：
-- `MAE` 越小，说明增强结果与 GT 的平均偏差越小。
+重新编译报告：
 
-### 6.4 MSE
-
-MSE 表示逐像素平方误差的平均值：
-
-```text
-MSE = mean((J - GT)^2)
+```powershell
+cd report_workspace\latex
+xelatex -interaction=nonstopmode report.tex
+bibtex report
+xelatex -interaction=nonstopmode report.tex
+xelatex -interaction=nonstopmode report.tex
 ```
 
-说明：
-- `MSE` 越小，说明增强结果与 GT 的误差越小。
-- `PSNR` 就是基于 `MSE` 进一步计算得到的。
+## 9. 方法特点
 
-### 6.5 LPIPS
+当前版本的特点如下：
 
-LPIPS 使用感知特征距离评价增强结果与 GT 的视觉感知差异，当前代码使用标准 `lpips` 库实现。
-
-说明：
-- 当前实现使用 `LPIPS(net="alex")`。
-- 输入图像会从 `[0, 1]` 转换到 `[-1, 1]` 后再送入模型。
-- `LPIPS` 越小，说明两张图在感知上越相近。
-
-## 7. 当前方法的主要参数
-
-当前主要参数定义在 [main.py](C:/Users/50307/Desktop/图像处理基础/project_1/main.py) 中。
-
-### 7.1 双边滤波参数
-
-`BILATERAL_DIAMETER`
-- 含义：双边滤波邻域直径 `d`。
-- 作用：决定每个像素参与平滑的邻域范围。
-
-`BILATERAL_SIGMA_COLOR`
-- 含义：双边滤波中的值域参数 `sigmaColor`。
-- 作用：控制像素值差异对滤波权重的影响。
-
-`BILATERAL_SIGMA_SPACE`
-- 含义：双边滤波中的空间域参数 `sigmaSpace`。
-- 作用：控制空间距离对滤波权重的影响。
-
-### 7.2 引导滤波参数
-
-`GUIDED_RADIUS`
-- 含义：引导滤波局部窗口半径。
-- 作用：控制局部线性模型统计的邻域范围。
-
-`GUIDED_EPS`
-- 含义：引导滤波中的正则项参数 `eps`。
-- 作用：防止局部方差过小时数值不稳定，并控制平滑强度。
-
-当前实现采用 `Project.md` 中的默认自引导方案：
-- `G = T0`
-- `p = T0`
-
-### 7.3 增强公式参数
-
-`TMIN`
-- 含义：照明图下限值 `Tmin`。
-- 作用：防止平滑照明图过小导致除法不稳定或局部过增强。
-
-`GAMMA`
-- 含义：增强公式中的指数参数 `gamma`。
-- 作用：控制增强强度。
-
-## 8. 当前代码文件说明
-
-当前核心文件如下：
-- [main.py](C:/Users/50307/Desktop/图像处理基础/project_1/main.py)：主程序入口，负责批量处理、保存结果、输出指标。
-- [pipeline.py](C:/Users/50307/Desktop/图像处理基础/project_1/pipeline.py)：实现 `T0` 估计、双边滤波、引导滤波和平滑增强流程。
-- [metrics.py](C:/Users/50307/Desktop/图像处理基础/project_1/metrics.py)：实现 `PSNR`、`SSIM`、`MAE`、`MSE`、`LPIPS` 的计算，以及平均指标统计。
-- [utils.py](C:/Users/50307/Desktop/图像处理基础/project_1/utils.py)：实现图像读写、结果目录创建、对比图拼接和 CSV 保存。
-
-## 9. 当前方法特点
-
-本项目当前实现的是一个课程作业用的基础版本，特点如下：
-- 方法结构清晰，便于报告解释和实验展示。
-- 保留了 Retinex 思路下“照明估计 + 平滑 + 补偿增强”的基本流程。
-- 已支持双边滤波与引导滤波两种平滑方法，便于直接做定量和定性对比。
-- 已支持多种常见评价指标，便于从像素误差、结构相似性和感知质量三个角度分析结果。
+- 结构清晰，便于展示“照明估计 + 平滑 + 增强 + 颜色校正”的完整流程
+- 主体方法和参数具有较好的可解释性
+- 同时支持双边滤波与引导滤波，便于定量和定性比较
+- 输出中间结果完整，方便撰写课程报告
+- 在线性色彩校正阶段保留增强亮度结构，并利用原图色度信息抑制颜色漂移
